@@ -108,17 +108,17 @@ export default function EmployeeDashboardClient({
                     {date.getDate().toString().padStart(2, "0")}
                   </p>
                 </div>
-                <div className="flex-1 grid grid-cols-4 gap-1 text-center">
+                <div className="flex-1 grid grid-cols-4 gap-2 text-center">
                   {[e.clockIn, e.lunchOut, e.lunchIn, e.clockOut].map((t, i) => (
                     <div key={i}>
-                      <p className="text-[8px] uppercase" style={{ color: "var(--text-4)" }}>
+                      <p className="text-[10px] uppercase font-medium" style={{ color: "var(--text-3)" }}>
                         {["Entrada","Almoço","Volta","Saída"][i]}
                       </p>
-                      <p className="text-xs font-medium" style={{ color: "var(--text-2)" }}>{t}</p>
+                      <p className="text-sm font-medium" style={{ color: "var(--text-2)" }}>{t}</p>
                     </div>
                   ))}
                 </div>
-                <div className="text-right shrink-0 w-14">
+                <div className="text-right shrink-0 min-w-[4.5rem] whitespace-nowrap">
                   <p className="font-syne text-sm font-bold" style={{ color: "var(--text)" }}>
                     {formatMinutes(e.workedMinutes)}
                   </p>

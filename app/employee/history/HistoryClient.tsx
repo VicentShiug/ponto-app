@@ -180,17 +180,17 @@ export default function HistoryClient({ days, weeks, monthLabel, totalWorkedLabe
                       ))}
                     </div>
                   ) : (
-                    <div className="flex-1 grid grid-cols-4 gap-1 text-center">
+                    <div className="flex-1 grid grid-cols-4 gap-2 text-center">
                       {[d.clockIn, d.lunchOut, d.lunchIn, d.clockOut].map((t, i) => (
                         <div key={i}>
-                          <p className="text-[8px] uppercase" style={{ color: "var(--text-4)" }}>{["Entrada","Almoço","Volta","Saída"][i]}</p>
-                          <p className="text-xs" style={{ color: "var(--text-2)" }}>{t ?? "--:--"}</p>
+                          <p className="text-[10px] uppercase font-medium" style={{ color: "var(--text-3)" }}>{["Entrada","Almoço","Volta","Saída"][i]}</p>
+                          <p className="text-sm font-medium" style={{ color: "var(--text-2)" }}>{t ?? "--:--"}</p>
                         </div>
                       ))}
                     </div>
                   )}
                   {!isEditing && (
-                    <div className="text-right shrink-0 w-12">
+                    <div className="text-right shrink-0 min-w-[4.5rem] whitespace-nowrap">
                       <p className="font-syne text-sm font-bold" style={{ color: "var(--text)" }}>{formatMinutes(d.workedMinutes)}</p>
                       {d.clockOut && d.clockOut !== "--:--" && (
                         <p className="text-[9px]" style={{ color: d.diffMinutes >= 0 ? "var(--accent)" : "var(--text-3)" }}>
