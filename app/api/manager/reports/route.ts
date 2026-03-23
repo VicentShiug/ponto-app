@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
 
     const results = await Promise.all(
       ids.map(async (id) => {
-        const user = await prisma.user.findUnique({ where: { id } });
+        const user = await prisma.user.findUnique({ where: { id }, select: { id: true, name: true, weeklyHours: true, workDays: true, overtimeMode: true } });
         if (!user) return null;
 
         const entries = await prisma.timeEntry.findMany({
@@ -35,14 +35,16 @@ export async function GET(req: NextRequest) {
           orderBy: { date: "asc" },
         });
 
-        const adjustments = await prisma.hourBankAdjustment.findMany({ where: { userId: id } });
-        const expectedPerDay = expectedDailyMinutes(user.weeklyHours);
+        const userWorkDays = user.workDays || [1,2,3,4,5];
+        const expectedPerDay = expectedDailyMinutes(user.weeklyHours, userWorkDays);
 
+        const adjustments = await prisma.hourBankAdjustment.findMany({ where: { userId: id } });
+        
         let balanceMinutes = 0;
         const serialized = entries.map((e) => {
           const dow = e.date.getDay();
           const worked = calcWorkedMinutes(e);
-          const diff = dow === 0 || dow === 6 ? 0 : worked - expectedPerDay;
+          const diff = !userWorkDays.includes(dow) ? 0 : worked - expectedPerDay;
           balanceMinutes += diff;
           return {
             date: e.date.toLocaleDateString("pt-BR"),

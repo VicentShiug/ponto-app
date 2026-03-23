@@ -12,6 +12,7 @@ interface User {
   name: string;
   email: string;
   weeklyHours: number;
+  workDays: number[];
   role: string;
   avatarUrl: string | null;
   accentColor: string;
@@ -34,6 +35,16 @@ const INTENSITIES = [
   { id: "high",   label: "Intenso" },
 ];
 
+const WEEKDAYS = [
+  { id: 0, label: "D" },
+  { id: 1, label: "S" },
+  { id: 2, label: "T" },
+  { id: 3, label: "Q" },
+  { id: 4, label: "Q" },
+  { id: 5, label: "S" },
+  { id: 6, label: "S" },
+];
+
 export default function ProfileClient({ user: initial }: { user: User }) {
   const router = useRouter();
   const { theme, accent, lightIntensity, darkIntensity, setTheme, setAccent, setLightIntensity, setDarkIntensity } = useTheme();
@@ -41,6 +52,7 @@ export default function ProfileClient({ user: initial }: { user: User }) {
 
   const [name, setName]               = useState(initial.name);
   const [weeklyHours, setWeeklyHours] = useState(String(initial.weeklyHours));
+  const [workDays, setWorkDays]       = useState<number[]>(initial.workDays || [1,2,3,4,5]);
   const [avatarUrl, setAvatarUrl]     = useState<string | null>(initial.avatarUrl);
   const [currentPw, setCurrentPw]     = useState("");
   const [newPw, setNewPw]             = useState("");
@@ -48,7 +60,17 @@ export default function ProfileClient({ user: initial }: { user: User }) {
   const [saving, setSaving]           = useState(false);
   const [savingPw, setSavingPw]       = useState(false);
 
+  const selectedDaysCount = workDays.length;
+  const dailyHours = selectedDaysCount > 0 ? Number(weeklyHours) / selectedDaysCount : 0;
+  const dailyHoursFormatted = selectedDaysCount > 0 
+    ? `${Math.floor(dailyHours)}h ${Math.round((dailyHours % 1) * 60)}min`
+    : null;
+
   async function handleSaveProfile() {
+    if (selectedDaysCount === 0) {
+      toast("Selecione pelo menos um dia de trabalho", "error");
+      return;
+    }
     setSaving(true);
     try {
       const res = await fetch("/api/profile", {
@@ -57,6 +79,7 @@ export default function ProfileClient({ user: initial }: { user: User }) {
         body: JSON.stringify({
           name,
           weeklyHours: Number(weeklyHours),
+          workDays,
           avatarUrl,
         }),
       });
@@ -172,15 +195,57 @@ export default function ProfileClient({ user: initial }: { user: User }) {
           <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
         </div>
         {initial.role === "EMPLOYEE" && (
-          <div>
-            <label className="label">Carga Horária Semanal (h)</label>
-            <input
-              className="input"
-              type="number" min="1" max="60"
-              value={weeklyHours}
-              onChange={(e) => setWeeklyHours(e.target.value)}
-            />
-          </div>
+          <>
+            <div>
+              <label className="label">Carga Horária Semanal (h)</label>
+              <input
+                className="input"
+                type="number" min="1" max="60"
+                value={weeklyHours}
+                onChange={(e) => setWeeklyHours(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="label">Dias de Trabalho</label>
+              <div className="flex gap-2">
+                {WEEKDAYS.map((day) => {
+                  const isSelected = workDays.includes(day.id);
+                  return (
+                    <button
+                      key={day.id}
+                      type="button"
+                      onClick={() => {
+                        if (isSelected) {
+                          if (workDays.length > 1) {
+                            setWorkDays(workDays.filter((d) => d !== day.id));
+                          }
+                        } else {
+                          setWorkDays([...workDays, day.id].sort());
+                        }
+                      }}
+                      className={clsx(
+                        "w-9 h-9 rounded-full text-sm font-medium transition-all",
+                        isSelected
+                          ? "bg-accent text-accent-fg"
+                          : "bg-surface-2 text-3 border border-base hover:text-2"
+                      )}
+                    >
+                      {day.label}
+                    </button>
+                  );
+                })}
+              </div>
+              {dailyHoursFormatted ? (
+                <p className="text-xs mt-2" style={{ color: "var(--text-3)" }}>
+                  Sua jornada diária será de: <span style={{ color: "var(--accent)" }}>{dailyHoursFormatted}</span>
+                </p>
+              ) : (
+                <p className="text-xs mt-2" style={{ color: "var(--text-3)" }}>
+                  Selecione pelo menos um dia de trabalho
+                </p>
+              )}
+            </div>
+          </>
         )}
         <button onClick={handleSaveProfile} disabled={saving} className="btn-primary w-full">
           {saving ? "Salvando..." : "Salvar informações"}

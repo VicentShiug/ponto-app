@@ -9,7 +9,7 @@ export default async function EmployeeHistory() {
   const session = await getSession();
   if (!session || session.role !== "EMPLOYEE") redirect("/login");
 
-  const user = await prisma.user.findUnique({ where: { id: session.userId }, select: { id: true, name: true, email: true, role: true, weeklyHours: true, active: true, avatarUrl: true, overtimeMode: true, passwordHash: true, createdAt: true, updatedAt: true } });
+  const user = await prisma.user.findUnique({ where: { id: session.userId }, select: { id: true, name: true, email: true, role: true, weeklyHours: true, workDays: true, active: true, avatarUrl: true, overtimeMode: true, passwordHash: true, createdAt: true, updatedAt: true } });
   if (!user) redirect("/login");
 
   const now = new Date();
@@ -21,7 +21,8 @@ export default async function EmployeeHistory() {
     orderBy: { date: "asc" },
   });
 
-  const expectedPerDay = expectedDailyMinutes(user.weeklyHours);
+  const userWorkDays = user.workDays || [1,2,3,4,5];
+  const expectedPerDay = expectedDailyMinutes(user.weeklyHours, userWorkDays);
 
   const days = [];
   for (let d = new Date(firstDay); d <= lastDay; d.setDate(d.getDate() + 1)) {
@@ -30,7 +31,7 @@ export default async function EmployeeHistory() {
       (e) => new Date(e.date).toDateString() === dayDate.toDateString()
     );
     const dow = dayDate.getDay();
-    const isWeekend = dow === 0 || dow === 6;
+    const isWeekend = !userWorkDays.includes(dow);
     const workedMinutes = entry ? calcWorkedMinutes(entry) : 0;
     const diff = isWeekend ? 0 : workedMinutes - expectedPerDay;
 

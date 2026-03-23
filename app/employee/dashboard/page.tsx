@@ -9,7 +9,7 @@ export default async function EmployeeDashboard() {
   const session = await getSession();
   if (!session || session.role !== "EMPLOYEE") redirect("/login");
 
-  const user = await prisma.user.findUnique({ where: { id: session.userId }, select: { id: true, name: true, email: true, role: true, weeklyHours: true, active: true, avatarUrl: true, overtimeMode: true, passwordHash: true, createdAt: true, updatedAt: true } });
+  const user = await prisma.user.findUnique({ where: { id: session.userId }, select: { id: true, name: true, email: true, role: true, weeklyHours: true, workDays: true, active: true, avatarUrl: true, overtimeMode: true, passwordHash: true, createdAt: true, updatedAt: true } });
   if (!user) redirect("/login");
 
   const today = new Date();
@@ -32,12 +32,13 @@ export default async function EmployeeDashboard() {
     where: { userId: user.id },
   });
 
-  const expectedPerDay = expectedDailyMinutes(user.weeklyHours);
+  const userWorkDays = user.workDays || [1,2,3,4,5];
+  const expectedPerDay = expectedDailyMinutes(user.weeklyHours, userWorkDays);
   let balanceMinutes = 0;
 
   for (const entry of entries) {
     const dayOfWeek = entry.date.getDay();
-    if (dayOfWeek === 0 || dayOfWeek === 6) continue;
+    if (!userWorkDays.includes(dayOfWeek)) continue;
     const worked = calcWorkedMinutes(entry);
     balanceMinutes += worked - expectedPerDay;
   }
