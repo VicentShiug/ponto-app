@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Sun, Moon, Check, Eye, EyeOff } from "lucide-react";
+import { Camera, Sun, Moon, Check, Eye, EyeOff, X } from "lucide-react";
 import { clsx } from "clsx";
 import { toast } from "@/components/Toaster";
 import { useTheme } from "@/components/ThemeProvider";
@@ -107,6 +107,21 @@ export default function ProfileClient({ user: initial }: { user: User }) {
     reader.readAsDataURL(file);
   }
 
+  async function handleRemovePhoto() {
+    setAvatarUrl(null);
+    const res = await fetch("/api/profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ avatarUrl: null }),
+    });
+    if (res.ok) {
+      toast("Foto removida!", "success");
+      router.refresh();
+    } else {
+      toast("Erro ao remover foto", "error");
+    }
+  }
+
   const initials = name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
 
   return (
@@ -132,6 +147,15 @@ export default function ProfileClient({ user: initial }: { user: User }) {
           >
             <Camera size={13} style={{ color: "var(--accent-fg)" }} />
           </button>
+          {avatarUrl && (
+            <button
+              onClick={handleRemovePhoto}
+              className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center shadow-lg"
+              style={{ backgroundColor: "var(--surface-3)", border: "1px solid var(--border)" }}
+            >
+              <X size={10} style={{ color: "var(--text-3)" }} />
+            </button>
+          )}
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
         </div>
         <div>

@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import AppLayout from "@/components/AppLayout";
-import { Toaster } from "@/components/Toaster";
 import AuditClient from "./AuditClient";
 
 export default async function AuditPage() {
@@ -32,7 +31,6 @@ export default async function AuditPage() {
 
   return (
     <AppLayout userName={manager.name} userRole="MANAGER" avatarUrl={manager.avatarUrl ?? undefined}>
-      <Toaster />
       <AuditClient logs={serialized} />
     </AppLayout>
   );

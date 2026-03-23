@@ -3,7 +3,6 @@ import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { calcWorkedMinutes, expectedDailyMinutes, formatMinutes, formatTime } from "@/lib/hours";
 import AppLayout from "@/components/AppLayout";
-import { Toaster } from "@/components/Toaster";
 import HistoryClient from "./HistoryClient";
 
 export default async function EmployeeHistory() {
@@ -86,7 +85,6 @@ export default async function EmployeeHistory() {
 
   return (
     <AppLayout userName={user.name} userRole="EMPLOYEE" avatarUrl={user.avatarUrl ?? undefined}>
-      <Toaster />
       <HistoryClient
         days={days}
         weeks={weeks}

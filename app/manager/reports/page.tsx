@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import AppLayout from "@/components/AppLayout";
-import { Toaster } from "@/components/Toaster";
 import ReportsClient from "./ReportsClient";
 
 export default async function ReportsPage() {
@@ -20,7 +19,6 @@ export default async function ReportsPage() {
 
   return (
     <AppLayout userName={manager.name} userRole="MANAGER" avatarUrl={manager.avatarUrl ?? undefined}>
-      <Toaster />
       <ReportsClient employees={employees} />
     </AppLayout>
   );

@@ -4,7 +4,6 @@ import { prisma } from "@/lib/prisma";
 import { calcWorkedMinutes, expectedDailyMinutes, formatMinutes, formatTime } from "@/lib/hours";
 import AppLayout from "@/components/AppLayout";
 import EmployeeDashboardClient from "./DashboardClient";
-import { Toaster } from "@/components/Toaster";
 
 export default async function EmployeeDashboard() {
   const session = await getSession();
@@ -71,7 +70,6 @@ export default async function EmployeeDashboard() {
 
   return (
     <AppLayout userName={user.name} userRole="EMPLOYEE" avatarUrl={user.avatarUrl ?? undefined}>
-      <Toaster />
       <EmployeeDashboardClient
         user={{ name: user.name, weeklyHours: user.weeklyHours, overtimeMode: user.overtimeMode }}
         todayEntryId={todayEntry?.id ?? null}

@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import AppLayout from "@/components/AppLayout";
-import { Toaster } from "@/components/Toaster";
 import EmployeesClient from "./EmployeesClient";
 
 export default async function ManagerEmployeesPage() {
@@ -28,7 +27,6 @@ export default async function ManagerEmployeesPage() {
 
   return (
     <AppLayout userName={manager.name} userRole="MANAGER" avatarUrl={manager.avatarUrl ?? undefined}>
-      <Toaster />
       <EmployeesClient
         employees={employees.map((e) => ({
           ...e,

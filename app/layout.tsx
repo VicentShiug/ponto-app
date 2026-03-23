@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Syne, DM_Sans } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { Toaster } from "@/components/Toaster";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -37,6 +38,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="pt-BR" className={`${syne.variable} ${dmSans.variable}`}>
       <body className="font-dm bg-base text-base antialiased">
         <ThemeProvider initialAccent={initialAccent}>
+          <Toaster />
           {children}
         </ThemeProvider>
       </body>

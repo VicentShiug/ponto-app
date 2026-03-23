@@ -6,9 +6,10 @@ import { z } from "zod";
 const patchSchema = z.object({
   name:         z.string().min(2).optional(),
   weeklyHours:  z.number().min(1).max(60).optional(),
+  workDays:     z.array(z.number().min(0).max(6)).optional(),
   currentPassword: z.string().optional(),
   newPassword:  z.string().min(6).optional(),
-  avatarUrl:    z.string().optional(),
+  avatarUrl:    z.string().nullable().optional(),
   accentColor:  z.string().optional(),
 });
 
@@ -17,7 +18,7 @@ export async function GET() {
     const session = await requireSession();
     const user = await prisma.user.findUnique({
       where: { id: session.userId },
-      select: { id: true, name: true, email: true, weeklyHours: true, role: true, avatarUrl: true, accentColor: true },
+      select: { id: true, name: true, email: true, weeklyHours: true, workDays: true, role: true, avatarUrl: true, accentColor: true },
     });
     return NextResponse.json({ user });
   } catch (err) {
@@ -39,9 +40,12 @@ export async function PATCH(req: NextRequest) {
     if (body.accentColor) updateData.accentColor = body.accentColor;
     if (body.avatarUrl !== undefined) updateData.avatarUrl = body.avatarUrl;
 
-    // Only employees can change weeklyHours via profile
+    // Only employees can change weeklyHours and workDays via profile
     if (body.weeklyHours !== undefined && current.role === "EMPLOYEE") {
       updateData.weeklyHours = body.weeklyHours;
+    }
+    if (body.workDays !== undefined && current.role === "EMPLOYEE") {
+      updateData.workDays = body.workDays;
     }
 
     // Password change
@@ -70,7 +74,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     return NextResponse.json({
-      user: { id: user.id, name: user.name, email: user.email, weeklyHours: user.weeklyHours, avatarUrl: user.avatarUrl, accentColor: user.accentColor },
+      user: { id: user.id, name: user.name, email: user.email, weeklyHours: user.weeklyHours, workDays: user.workDays, avatarUrl: user.avatarUrl, accentColor: user.accentColor },
     });
   } catch (err) {
     if (err instanceof z.ZodError)

@@ -5,7 +5,6 @@ import {
   calcWorkedMinutes, expectedDailyMinutes, formatMinutes, formatTime,
 } from "@/lib/hours";
 import AppLayout from "@/components/AppLayout";
-import { Toaster } from "@/components/Toaster";
 import EmployeeDetailClient from "./DetailClient";
 
 export default async function EmployeeDetailPage({ params }: { params: { id: string } }) {
@@ -65,7 +64,6 @@ export default async function EmployeeDetailPage({ params }: { params: { id: str
 
   return (
     <AppLayout userName={manager.name} userRole="MANAGER" avatarUrl={manager.avatarUrl ?? undefined}>
-      <Toaster />
       <EmployeeDetailClient
         employee={{
           id: employee.id,

@@ -39,10 +39,20 @@ export function minutesToHours(minutes: number): number {
 }
 
 /**
- * Calcula horas esperadas por dia com base na carga semanal
+ * Calcula horas esperadas por dia com base na carga semanal e dias de trabalho
  */
-export function expectedDailyMinutes(weeklyHours: number): number {
-  return Math.floor((weeklyHours * 60) / 5);
+export function expectedDailyMinutes(weeklyHours: number, workDays: number[] = [1,2,3,4,5]): number {
+  const days = workDays.length || 5;
+  return Math.floor((weeklyHours * 60) / days);
+}
+
+/**
+ * Converte horas decimais para formato "HH:mm" (ex: 8.5 -> "08:30")
+ */
+export function formatDecimalHours(decimal: number): string {
+  const hours = Math.floor(decimal);
+  const minutes = Math.round((decimal - hours) * 60);
+  return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
 }
 
 /**

@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import AppLayout from "@/components/AppLayout";
-import { Toaster } from "@/components/Toaster";
 import ProfileClient from "./ProfileClient";
 
 export default async function ProfilePage() {
@@ -17,7 +16,6 @@ export default async function ProfilePage() {
 
   return (
     <AppLayout userName={user.name} userRole={user.role} avatarUrl={user.avatarUrl ?? undefined}>
-      <Toaster />
       <ProfileClient user={{ ...user, avatarUrl: user.avatarUrl ?? null, accentColor: user.accentColor ?? "default" }} />
     </AppLayout>
   );

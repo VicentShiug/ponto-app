@@ -24,6 +24,7 @@ model User {
   passwordHash  String       @map("password_hash")
   role          Role         @default(EMPLOYEE)
   weeklyHours   Float        @default(40) @map("weekly_hours")
+  workDays      Int[]        @default([1,2,3,4,5]) @map("work_days")
   overtimeMode  OvertimeMode @default(HOUR_BANK) @map("overtime_mode")
   active        Boolean      @default(true)
   avatarUrl     String?      @map("avatar_url")

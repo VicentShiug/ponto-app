@@ -7,7 +7,6 @@ import {
   formatMinutes,
 } from "@/lib/hours";
 import AppLayout from "@/components/AppLayout";
-import { Toaster } from "@/components/Toaster";
 import ManagerDashboardClient from "./DashboardClient";
 
 export default async function ManagerDashboard() {
@@ -76,7 +75,6 @@ export default async function ManagerDashboard() {
 
   return (
     <AppLayout userName={manager.name} userRole="MANAGER" avatarUrl={manager.avatarUrl ?? undefined}>
-      <Toaster />
       <ManagerDashboardClient
         employees={employeeData}
         summary={{ present, incomplete, absent, total: employees.length }}
