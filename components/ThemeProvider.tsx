@@ -4,17 +4,22 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 
 type Theme  = "dark" | "light";
 type Accent = "default" | "blue" | "violet" | "rose" | "amber" | "emerald" | "cyan" | "orange";
+type Intensity = "soft" | "medium" | "high";
 
 interface ThemeCtx {
   theme:  Theme;
   accent: Accent;
+  lightIntensity: Intensity;
+  darkIntensity: Intensity;
   setTheme:  (t: Theme)  => void;
   setAccent: (a: Accent) => void;
+  setLightIntensity: (i: Intensity) => void;
+  setDarkIntensity: (i: Intensity) => void;
 }
 
 const Ctx = createContext<ThemeCtx>({
-  theme: "dark", accent: "default",
-  setTheme: () => {}, setAccent: () => {},
+  theme: "dark", accent: "default", lightIntensity: "medium", darkIntensity: "medium",
+  setTheme: () => {}, setAccent: () => {}, setLightIntensity: () => {}, setDarkIntensity: () => {},
 });
 
 export function useTheme() { return useContext(Ctx); }
@@ -28,11 +33,20 @@ export function ThemeProvider({
 }) {
   const [theme,  setThemeState]  = useState<Theme>("dark");
   const [accent, setAccentState] = useState<Accent>((initialAccent as Accent) ?? "default");
+  const [lightIntensity, setLightIntensityState] = useState<Intensity>("medium");
+  const [darkIntensity, setDarkIntensityState] = useState<Intensity>("medium");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem("ponto_theme") as Theme | null;
-    if (saved) setThemeState(saved);
+    const savedTheme = localStorage.getItem("ponto_theme") as Theme | null;
+    if (savedTheme) setThemeState(savedTheme);
+    
+    const savedLight = localStorage.getItem("ponto_light_intensity") as Intensity | null;
+    if (savedLight) setLightIntensityState(savedLight);
+    
+    const savedDark = localStorage.getItem("ponto_dark_intensity") as Intensity | null;
+    if (savedDark) setDarkIntensityState(savedDark);
+    
     setMounted(true);
   }, []);
 
@@ -48,6 +62,14 @@ export function ThemeProvider({
   }, [theme, mounted]);
 
   useEffect(() => {
+    if (!mounted) return;
+    const html = document.documentElement;
+    const intensity = theme === "light" ? lightIntensity : darkIntensity;
+    html.setAttribute("data-intensity", intensity);
+    localStorage.setItem(`ponto_${theme}_intensity`, intensity);
+  }, [theme, lightIntensity, darkIntensity, mounted]);
+
+  useEffect(() => {
     const html = document.documentElement;
     if (accent === "default") {
       html.removeAttribute("data-accent");
@@ -60,7 +82,6 @@ export function ThemeProvider({
 
   function setAccent(a: Accent) {
     setAccentState(a);
-    // Persist accent to DB
     fetch("/api/profile", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -68,8 +89,11 @@ export function ThemeProvider({
     }).catch(() => {});
   }
 
+  function setLightIntensity(i: Intensity) { setLightIntensityState(i); }
+  function setDarkIntensity(i: Intensity) { setDarkIntensityState(i); }
+
   return (
-    <Ctx.Provider value={{ theme, accent, setTheme, setAccent }}>
+    <Ctx.Provider value={{ theme, accent, lightIntensity, darkIntensity, setTheme, setAccent, setLightIntensity, setDarkIntensity }}>
       {children}
     </Ctx.Provider>
   );

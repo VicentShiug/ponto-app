@@ -28,9 +28,15 @@ const ACCENTS = [
   { id: "orange",  label: "Laranja",    hex: "bg-orange-500 border-orange-400" },
 ];
 
+const INTENSITIES = [
+  { id: "soft",   label: "Suave" },
+  { id: "medium", label: "Padrão" },
+  { id: "high",   label: "Intenso" },
+];
+
 export default function ProfileClient({ user: initial }: { user: User }) {
   const router = useRouter();
-  const { theme, accent, setTheme, setAccent } = useTheme();
+  const { theme, accent, lightIntensity, darkIntensity, setTheme, setAccent, setLightIntensity, setDarkIntensity } = useTheme();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [name, setName]               = useState(initial.name);
@@ -217,6 +223,32 @@ export default function ProfileClient({ user: initial }: { user: User }) {
                 {theme === t && <Check size={13} />}
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* Intensity selector */}
+        <div>
+          <label className="label">Intensidade do tema</label>
+          <div className="flex gap-2">
+            {INTENSITIES.map((i) => {
+              const currentIntensity = theme === "light" ? lightIntensity : darkIntensity;
+              const isSelected = currentIntensity === i.id;
+              return (
+                <button
+                  key={i.id}
+                  onClick={() => theme === "light" ? setLightIntensity(i.id as any) : setDarkIntensity(i.id as any)}
+                  className={clsx(
+                    "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border text-sm font-medium transition-all",
+                    isSelected
+                      ? "bg-accent-subtle border-accent text-accent"
+                      : "bg-surface-2 border-base text-3 hover:text-2"
+                  )}
+                >
+                  {i.label}
+                  {isSelected && <Check size={13} />}
+                </button>
+              );
+            })}
           </div>
         </div>
 
