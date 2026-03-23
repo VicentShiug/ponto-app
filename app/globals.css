@@ -1,0 +1,224 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── DARK THEME (default) ─────────────────────────────── */
+:root {
+  --bg:         #161616;
+  --surface:    #202020;
+  --surface-2:  #282828;
+  --surface-3:  #323232;
+  --border:     #333333;
+  --border-2:   #404040;
+  --text:       #f0f0f0;
+  --text-2:     #a8a8a8;
+  --text-3:     #686868;
+  --text-4:     #404040;
+
+  /* Accent default = white */
+  --accent:        #ffffff;
+  --accent-hover:  #e8e8e8;
+  --accent-fg:     #000000;
+  --accent-subtle: rgba(255,255,255,0.07);
+  --accent-border: rgba(255,255,255,0.12);
+}
+
+/* ─── LIGHT THEME ───────────────────────────────────────── */
+[data-theme="light"] {
+  --bg:         #f4f4f4;
+  --surface:    #ffffff;
+  --surface-2:  #efefef;
+  --surface-3:  #e5e5e5;
+  --border:     #e0e0e0;
+  --border-2:   #d0d0d0;
+  --text:       #111111;
+  --text-2:     #555555;
+  --text-3:     #999999;
+  --text-4:     #cccccc;
+
+  --accent:        #111111;
+  --accent-hover:  #333333;
+  --accent-fg:     #ffffff;
+  --accent-subtle: rgba(0,0,0,0.06);
+  --accent-border: rgba(0,0,0,0.10);
+}
+
+/* ─── ACCENT COLORS ─────────────────────────────────────── */
+[data-accent="blue"] {
+  --accent:        #3b82f6;
+  --accent-hover:  #2563eb;
+  --accent-fg:     #ffffff;
+  --accent-subtle: rgba(59,130,246,0.10);
+  --accent-border: rgba(59,130,246,0.20);
+}
+[data-accent="violet"] {
+  --accent:        #8b5cf6;
+  --accent-hover:  #7c3aed;
+  --accent-fg:     #ffffff;
+  --accent-subtle: rgba(139,92,246,0.10);
+  --accent-border: rgba(139,92,246,0.20);
+}
+[data-accent="rose"] {
+  --accent:        #f43f5e;
+  --accent-hover:  #e11d48;
+  --accent-fg:     #ffffff;
+  --accent-subtle: rgba(244,63,94,0.10);
+  --accent-border: rgba(244,63,94,0.20);
+}
+[data-accent="amber"] {
+  --accent:        #f59e0b;
+  --accent-hover:  #d97706;
+  --accent-fg:     #000000;
+  --accent-subtle: rgba(245,158,11,0.10);
+  --accent-border: rgba(245,158,11,0.20);
+}
+[data-accent="emerald"] {
+  --accent:        #10b981;
+  --accent-hover:  #059669;
+  --accent-fg:     #ffffff;
+  --accent-subtle: rgba(16,185,129,0.10);
+  --accent-border: rgba(16,185,129,0.20);
+}
+[data-accent="cyan"] {
+  --accent:        #06b6d4;
+  --accent-hover:  #0891b2;
+  --accent-fg:     #000000;
+  --accent-subtle: rgba(6,182,212,0.10);
+  --accent-border: rgba(6,182,212,0.20);
+}
+[data-accent="orange"] {
+  --accent:        #f97316;
+  --accent-hover:  #ea580c;
+  --accent-fg:     #ffffff;
+  --accent-subtle: rgba(249,115,22,0.10);
+  --accent-border: rgba(249,115,22,0.20);
+}
+
+/* ─── SEMANTIC UTILITIES ────────────────────────────────── */
+@layer utilities {
+  /* Backgrounds */
+  .bg-base      { background-color: var(--bg); }
+  .bg-surface   { background-color: var(--surface); }
+  .bg-surface-2 { background-color: var(--surface-2); }
+  .bg-surface-3 { background-color: var(--surface-3); }
+
+  /* Text — use ink-* to avoid conflict with Tailwind's text-base font-size */
+  .text-ink     { color: var(--text); }
+  .text-ink-2   { color: var(--text-2); }
+  .text-ink-3   { color: var(--text-3); }
+  .text-ink-4   { color: var(--text-4); }
+
+  /* Keep text-2/3/4 as aliases (used in ProfileClient) */
+  .text-2 { color: var(--text-2); }
+  .text-3 { color: var(--text-3); }
+  .text-4 { color: var(--text-4); }
+
+  /* Borders */
+  .border-line    { border-color: var(--border); }
+  .border-line-2  { border-color: var(--border-2); }
+  /* aliases */
+  .border-base    { border-color: var(--border); }
+  .border-2-base  { border-color: var(--border-2); }
+
+  /* Accent */
+  .text-accent      { color: var(--accent); }
+  .bg-accent        { background-color: var(--accent); }
+  .bg-accent-subtle { background-color: var(--accent-subtle); }
+  .border-accent    { border-color: var(--accent-border); }
+}
+
+/* ─── BASE ──────────────────────────────────────────────── */
+@layer base {
+  * { border-color: var(--border); }
+  body { background-color: var(--bg); color: var(--text); }
+}
+
+/* ─── COMPONENT CLASSES ─────────────────────────────────── */
+@layer components {
+  .card {
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    @apply rounded-2xl p-5;
+  }
+
+  .btn-primary {
+    background-color: var(--accent);
+    color: var(--accent-fg);
+    @apply font-semibold font-syne rounded-xl px-5 py-2.5
+           active:scale-95 transition-all duration-150
+           disabled:opacity-30 disabled:cursor-not-allowed;
+  }
+  .btn-primary:hover { background-color: var(--accent-hover); }
+
+  .btn-secondary {
+    background-color: var(--surface-2);
+    color: var(--text-2);
+    border: 1px solid var(--border);
+    @apply font-medium rounded-xl px-5 py-2.5
+           active:scale-95 transition-all duration-150;
+  }
+  .btn-secondary:hover { background-color: var(--surface-3); color: var(--text); }
+
+  .btn-danger {
+    background-color: transparent;
+    color: var(--text-3);
+    border: 1px solid var(--border);
+    @apply font-medium rounded-xl px-5 py-2.5
+           active:scale-95 transition-all duration-150;
+  }
+  .btn-danger:hover { border-color: var(--border-2); color: var(--text); }
+
+  .input {
+    width: 100%;
+    background-color: var(--surface);
+    border: 1px solid var(--border-2);
+    color: var(--text);
+    @apply rounded-xl px-4 py-3 focus:outline-none transition-all;
+  }
+  .input::placeholder { color: var(--text-4); }
+  .input:focus { border-color: var(--accent-border); box-shadow: 0 0 0 1px var(--accent-border); }
+
+  .label {
+    color: var(--text-3);
+    @apply text-[10px] font-medium uppercase tracking-widest mb-1.5 block;
+  }
+
+  .badge-complete {
+    background-color: var(--accent-subtle);
+    color: var(--accent);
+    border: 1px solid var(--accent-border);
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium;
+  }
+  .badge-incomplete {
+    background-color: var(--surface-2);
+    color: var(--text-3);
+    border: 1px solid var(--border);
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium;
+  }
+  .badge-absent {
+    background-color: var(--surface-2);
+    color: var(--text-4);
+    border: 1px solid var(--border);
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium;
+  }
+}
+
+/* ─── SCROLLBAR ─────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-4); }
+
+/* ─── ANIMATIONS ────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: fadeIn 0.2s ease forwards; }
+
+@keyframes pulse-ring {
+  0%   { box-shadow: 0 0 0 0 var(--accent-border); }
+  70%  { box-shadow: 0 0 0 10px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+.pulse-ring { animation: pulse-ring 2.5s ease-in-out infinite; }

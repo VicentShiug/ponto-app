@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  MANAGER
+  EMPLOYEE
+}
+
+enum OvertimeMode {
+  OVERTIME
+  HOUR_BANK
+}
+
+model User {
+  id            String       @id @default(cuid())
+  name          String
+  email         String       @unique
+  passwordHash  String       @map("password_hash")
+  role          Role         @default(EMPLOYEE)
+  weeklyHours   Float        @default(40) @map("weekly_hours")
+  overtimeMode  OvertimeMode @default(HOUR_BANK) @map("overtime_mode")
+  active        Boolean      @default(true)
+  avatarUrl     String?      @map("avatar_url")
+  accentColor   String?      @default("default") @map("accent_color")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+
+  timeEntries          TimeEntry[]
+  hourBankAdjustments  HourBankAdjustment[]  @relation("EmployeeAdjustments")
+  managedAdjustments   HourBankAdjustment[]  @relation("ManagerAdjustments")
+  actorAuditLogs       AuditLog[]            @relation("ActorLogs")
+  targetAuditLogs      AuditLog[]            @relation("TargetLogs")
+
+  @@map("users")
+}
+
+model TimeEntry {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  date      DateTime  @db.Date
+  clockIn   DateTime? @map("clock_in")
+  lunchOut  DateTime? @map("lunch_out")
+  lunchIn   DateTime? @map("lunch_in")
+  clockOut  DateTime? @map("clock_out")
+  notes     String?
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, date])
+  @@map("time_entries")
+}
+
+model HourBankAdjustment {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  managerId  String   @map("manager_id")
+  minutes    Int
+  reason     String
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user    User @relation("EmployeeAdjustments", fields: [userId], references: [id])
+  manager User @relation("ManagerAdjustments", fields: [managerId], references: [id])
+
+  @@map("hour_bank_adjustments")
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  actorId      String   @map("actor_id")
+  action       String
+  targetUserId String?  @map("target_user_id")
+  details      Json
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  actor      User  @relation("ActorLogs", fields: [actorId], references: [id])
+  targetUser User? @relation("TargetLogs", fields: [targetUserId], references: [id])
+
+  @@map("audit_logs")
+}
