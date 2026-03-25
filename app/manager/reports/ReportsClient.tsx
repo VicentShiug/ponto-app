@@ -124,7 +124,7 @@ export default function ReportsClient({ employees }: Props) {
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
       <div>
-        <h1 className="font-syne text-2xl font-bold text-base">Relatórios</h1>
+        <h1 className="font-syne text-2xl font-bold" style={{ color: "var(--text)" }}>Relatórios</h1>
         <p className="text-3 text-sm mt-0.5">Exporte registros de ponto em PDF ou Excel</p>
       </div>
 
@@ -170,7 +170,7 @@ export default function ReportsClient({ employees }: Props) {
                   {selected && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#18181b" strokeWidth="2" strokeLinecap="round" /></svg>}
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-base">{emp.name}</p>
+                  <p className="text-sm font-medium" style={{ color: "var(--text)" }}>{emp.name}</p>
                   <p className="text-xs text-3">{emp.weeklyHours}h/sem · {emp.overtimeMode === "HOUR_BANK" ? "Banco de Horas" : "Hora Extra"}</p>
                 </div>
               </button>

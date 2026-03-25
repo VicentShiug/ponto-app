@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { clsx } from "clsx";
@@ -48,6 +48,17 @@ export default function EmployeesClient({ employees: initial }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormData>(EMPTY_FORM);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (showModal) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [showModal]);
 
   const filtered = employees.filter((e) =>
     e.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -108,7 +119,7 @@ export default function EmployeesClient({ employees: initial }: Props) {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-syne text-2xl font-bold text-base">Funcionários</h1>
+          <h1 className="font-syne text-2xl font-bold" style={{ color: "var(--text)" }}>Funcionários</h1>
           <p className="text-3 text-sm mt-0.5">{employees.filter(e => e.active).length} ativos</p>
         </div>
         <button onClick={openCreate} className="btn-primary flex items-center gap-2">
@@ -134,7 +145,7 @@ export default function EmployeesClient({ employees: initial }: Props) {
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <p className="font-medium text-base truncate">{emp.name}</p>
+                <p className="font-medium truncate" style={{ color: "var(--text)" }}>{emp.name}</p>
                 {!emp.active && (
                   <span className="text-[10px] bg-surface-3 text-2 px-2 py-0.5 rounded-full">inativo</span>
                 )}
@@ -142,13 +153,13 @@ export default function EmployeesClient({ employees: initial }: Props) {
               <p className="text-xs text-3 truncate">{emp.email} · {emp.weeklyHours}h/sem · {emp.overtimeMode === "HOUR_BANK" ? "Banco" : "Extra"}</p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <button onClick={() => openEdit(emp)} className="p-2 text-2 hover:text-base hover:bg-surface-3 rounded-lg transition-all">
+              <button onClick={() => openEdit(emp)} className="p-2 text-2 hover:text-ink hover:bg-surface-3 rounded-lg transition-all">
                 <Edit2 size={15} />
               </button>
               <button onClick={() => toggleActive(emp)} className={clsx("p-2 rounded-lg transition-all", emp.active ? "text-red-400 hover:bg-red-400/10" : "text-green-400 hover:bg-green-400/10")}>
                 {emp.active ? <UserX size={15} /> : <UserCheck size={15} />}
               </button>
-              <Link href={`/manager/employees/${emp.id}`} className="p-2 text-2 hover:text-base hover:bg-surface-3 rounded-lg transition-all">
+              <Link href={`/manager/employees/${emp.id}`} className="p-2 text-2 hover:text-ink hover:bg-surface-3 rounded-lg transition-all">
                 <ChevronRight size={15} />
               </Link>
             </div>
@@ -158,51 +169,53 @@ export default function EmployeesClient({ employees: initial }: Props) {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-base/80 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-surface border border-base rounded-2xl p-6 animate-fade-in">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="font-syne font-bold text-lg text-base">
-                {editingId ? "Editar Funcionário" : "Novo Funcionário"}
-              </h2>
-              <button onClick={() => setShowModal(false)} className="text-3 hover:text-base">
-                <X size={20} />
-              </button>
-            </div>
+        <div className="fixed z-50" style={{ top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <div className="w-full h-full flex items-center justify-center p-4">
+            <div className="w-full max-w-md bg-surface border border-base rounded-2xl p-6 animate-fade-in">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="font-syne font-bold text-lg" style={{ color: "var(--text)" }}>
+                  {editingId ? "Editar Funcionário" : "Novo Funcionário"}
+                </h2>
+                <button onClick={() => setShowModal(false)} className="text-3 hover:text-ink">
+                  <X size={20} />
+                </button>
+              </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="label">Nome</label>
-                <input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Nome completo" />
-              </div>
-              <div>
-                <label className="label">E-mail</label>
-                <input className="input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="email@empresa.com" />
-              </div>
-              <div>
-                <label className="label">{editingId ? "Nova Senha (deixe vazio para não alterar)" : "Senha"}</label>
-                <input className="input" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="••••••••" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-4">
                 <div>
-                  <label className="label">Carga Semanal (h)</label>
-                  <input className="input" type="number" min="1" max="60" value={form.weeklyHours} onChange={(e) => setForm({ ...form, weeklyHours: e.target.value })} />
+                  <label className="label">Nome</label>
+                  <input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Nome completo" />
                 </div>
                 <div>
-                  <label className="label">Modo</label>
-                  <select className="input" value={form.overtimeMode} onChange={(e) => setForm({ ...form, overtimeMode: e.target.value as any })}>
-                    <option value="HOUR_BANK">Banco de Horas</option>
-                    <option value="OVERTIME">Hora Extra</option>
-                  </select>
+                  <label className="label">E-mail</label>
+                  <input className="input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="email@empresa.com" />
+                </div>
+                <div>
+                  <label className="label">{editingId ? "Nova Senha (deixe vazio para não alterar)" : "Senha"}</label>
+                  <input className="input" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="••••••••" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="label">Carga Semanal (h)</label>
+                    <input className="input" type="number" min="1" max="60" value={form.weeklyHours} onChange={(e) => setForm({ ...form, weeklyHours: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="label">Modo</label>
+                    <select className="input" value={form.overtimeMode} onChange={(e) => setForm({ ...form, overtimeMode: e.target.value as any })}>
+                      <option value="HOUR_BANK">Banco de Horas</option>
+                      <option value="OVERTIME">Hora Extra</option>
+                    </select>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="flex gap-3 mt-6">
-              <button onClick={() => setShowModal(false)} className="btn-secondary flex-1">Cancelar</button>
-              <button onClick={handleSubmit} disabled={loading} className="btn-primary flex-1 flex items-center justify-center gap-2">
-                {loading ? <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <Check size={16} />}
-                {loading ? "Salvando..." : "Salvar"}
-              </button>
+              <div className="flex gap-3 mt-6">
+                <button onClick={() => setShowModal(false)} className="btn-secondary flex-1">Cancelar</button>
+                <button onClick={handleSubmit} disabled={loading} className="btn-primary flex-1 flex items-center justify-center gap-2">
+                  {loading ? <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <Check size={16} />}
+                  {loading ? "Salvando..." : "Salvar"}
+                </button>
+              </div>
             </div>
           </div>
         </div>

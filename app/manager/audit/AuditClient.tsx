@@ -39,7 +39,7 @@ export default function AuditClient({ logs }: { logs: AuditLog[] }) {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
-        <h1 className="font-syne text-2xl font-bold text-base">Auditoria</h1>
+        <h1 className="font-syne text-2xl font-bold" style={{ color: "var(--text)" }}>Auditoria</h1>
         <p className="text-3 text-sm mt-0.5">
           Histórico de todas as alterações realizadas por gestores
         </p>
@@ -83,7 +83,7 @@ export default function AuditClient({ logs }: { logs: AuditLog[] }) {
                 </span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 text-sm">
-                    <span className="font-medium text-base">{log.actor.name}</span>
+                    <span className="font-medium" style={{ color: "var(--text)" }}>{log.actor.name}</span>
                     {log.targetUser && log.targetUser.email !== log.actor.email && (
                       <>
                         <ChevronRight size={12} className="text-4" />

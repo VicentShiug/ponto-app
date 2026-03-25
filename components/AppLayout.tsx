@@ -26,7 +26,7 @@ export default function AppLayout({
 }: {
   children: React.ReactNode;
   userName: string;
-  userRole: "MANAGER" | "EMPLOYEE";
+  userRole: string;
   avatarUrl?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -128,7 +128,7 @@ export default function AppLayout({
 
       {/* Mobile overlay */}
       {open && (
-        <div className="fixed inset-0 z-40 lg:hidden" style={{ backgroundColor: "rgba(0,0,0,0.5)" }} onClick={() => setOpen(false)} />
+        <div className="fixed h-screen w-screen z-40 lg:hidden" style={{ backgroundColor: "rgba(0,0,0,0.5)" }} onClick={() => setOpen(false)} />
       )}
       <aside
         className={clsx("fixed inset-y-0 left-0 z-50 w-52 flex flex-col transition-transform duration-300 lg:hidden", open ? "translate-x-0" : "-translate-x-full")}
