@@ -7,20 +7,35 @@ import {
 import AppLayout from "@/components/AppLayout";
 import EmployeeDetailClient from "./DetailClient";
 
-export default async function EmployeeDetailPage({ params }: { params: { id: string } }) {
+export default async function EmployeeDetailPage({
+  params,
+  searchParams,
+}: {
+  params: { id: string };
+  searchParams: Promise<{ month?: string; year?: string }>;
+}) {
   const session = await getSession();
   if (!session || session.role !== "MANAGER") redirect("/login");
+
+  const paramsAwaited = await searchParams;
+  const now = new Date();
+  const year = paramsAwaited.year ? parseInt(paramsAwaited.year) : now.getFullYear();
+  const month = paramsAwaited.month ? parseInt(paramsAwaited.month) - 1 : now.getMonth();
 
   const manager = await prisma.user.findUnique({ where: { id: session.userId }, select: { id: true, name: true, email: true, role: true, weeklyHours: true, active: true, avatarUrl: true, overtimeMode: true, passwordHash: true, createdAt: true, updatedAt: true } });
   const employee = await prisma.user.findUnique({ where: { id: params.id } });
   if (!manager || !employee || employee.role !== "EMPLOYEE") notFound();
 
-  const since90 = new Date();
-  since90.setDate(since90.getDate() - 90);
-  since90.setHours(0, 0, 0, 0);
+  const monthFirstDay = new Date(year, month, 1);
+  const monthLastDay = new Date(year, month + 1, 0);
 
-  const entries = await prisma.timeEntry.findMany({
-    where: { userId: employee.id, date: { gte: since90 } },
+  const monthEntries = await prisma.timeEntry.findMany({
+    where: { userId: employee.id, date: { gte: monthFirstDay, lte: monthLastDay } },
+    orderBy: { date: "desc" },
+  });
+
+  const allEntries = await prisma.timeEntry.findMany({
+    where: { userId: employee.id },
     orderBy: { date: "desc" },
   });
 
@@ -32,14 +47,26 @@ export default async function EmployeeDetailPage({ params }: { params: { id: str
 
   const expectedPerDay = expectedDailyMinutes(employee.weeklyHours);
   let balanceMinutes = 0;
-  for (const entry of entries) {
+  for (const entry of allEntries) {
     const dow = entry.date.getDay();
     if (dow === 0 || dow === 6) continue;
     balanceMinutes += calcWorkedMinutes(entry) - expectedPerDay;
   }
   for (const adj of adjustments) balanceMinutes += adj.minutes;
 
-  const serializedEntries = entries.map((e) => ({
+  let monthBalanceMinutes = 0;
+  for (const entry of monthEntries) {
+    const dow = entry.date.getDay();
+    if (dow === 0 || dow === 6) continue;
+    monthBalanceMinutes += calcWorkedMinutes(entry) - expectedPerDay;
+  }
+  const monthAdjustments = adjustments.filter((a) => {
+    const adjDate = new Date(a.createdAt);
+    return adjDate >= monthFirstDay && adjDate <= monthLastDay;
+  });
+  for (const adj of monthAdjustments) monthBalanceMinutes += adj.minutes;
+
+  const serializedEntries = monthEntries.map((e) => ({
     id: e.id,
     date: e.date.toISOString(),
     clockIn: formatTime(e.clockIn),
@@ -62,6 +89,9 @@ export default async function EmployeeDetailPage({ params }: { params: { id: str
     createdAt: a.createdAt.toISOString(),
   }));
 
+  const currentDate = new Date(year, month, 15);
+  const monthLabel = currentDate.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+
   return (
     <AppLayout userName={manager.name} userRole="MANAGER" avatarUrl={manager.avatarUrl ?? undefined}>
       <EmployeeDetailClient
@@ -76,6 +106,10 @@ export default async function EmployeeDetailPage({ params }: { params: { id: str
         adjustments={serializedAdjustments}
         balanceMinutes={balanceMinutes}
         balanceLabel={formatMinutes(balanceMinutes)}
+        monthLabel={monthLabel}
+        monthBalanceLabel={formatMinutes(monthBalanceMinutes)}
+        currentYear={year}
+        currentMonth={month + 1}
         expectedPerDay={expectedPerDay}
       />
     </AppLayout>

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { clsx } from "clsx";
 import {
-  TrendingUp, TrendingDown, Plus, Minus, Edit2, Check, X, ArrowLeft,
+  TrendingUp, TrendingDown, Plus, Minus, Edit2, Check, X, ArrowLeft, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "@/components/Toaster";
@@ -30,13 +30,17 @@ interface Props {
   adjustments: Adjustment[];
   balanceMinutes: number;
   balanceLabel: string;
+  monthLabel: string;
+  monthBalanceLabel: string;
+  currentYear: number;
+  currentMonth: number;
   expectedPerDay: number;
 }
 
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 export default function EmployeeDetailClient({
-  employee, entries, adjustments, balanceMinutes, balanceLabel, expectedPerDay,
+  employee, entries, adjustments, balanceMinutes, balanceLabel, monthLabel, monthBalanceLabel, currentYear, currentMonth, expectedPerDay,
 }: Props) {
   const router = useRouter();
   const { theme } = useTheme();
@@ -48,6 +52,26 @@ export default function EmployeeDetailClient({
   const [adjType, setAdjType] = useState<"add" | "remove">("add");
   const [loading, setLoading] = useState(false);
   const [editEntry, setEditEntry] = useState<Entry | null>(null);
+
+  function goToMonth(year: number, month: number) {
+    router.push(`/manager/employees/${employee.id}?year=${year}&month=${month}`);
+  }
+
+  function prevMonth() {
+    if (currentMonth === 1) {
+      goToMonth(currentYear - 1, 12);
+    } else {
+      goToMonth(currentYear, currentMonth - 1);
+    }
+  }
+
+  function nextMonth() {
+    if (currentMonth === 12) {
+      goToMonth(currentYear + 1, 1);
+    } else {
+      goToMonth(currentYear, currentMonth + 1);
+    }
+  }
   const [editForm, setEditForm] = useState({ clockIn: "", lunchOut: "", lunchIn: "", clockOut: "" });
 
   useEffect(() => {
@@ -147,9 +171,14 @@ export default function EmployeeDetailClient({
             <p className="text-xs text-3 uppercase tracking-widest">
               {employee.overtimeMode === "HOUR_BANK" ? "Banco de Horas" : "Horas Extras"}
             </p>
-            <p className={clsx("font-syne text-3xl font-bold", positive ? (theme === "dark" ? "text-green-400" : "text-green-600") : (theme === "dark" ? "text-red-400" : "text-red-600"))}>
-              {balanceLabel}
-            </p>
+            <div className="flex items-baseline gap-2">
+              <p className={clsx("font-syne text-3xl font-bold", positive ? (theme === "dark" ? "text-green-400" : "text-green-600") : (theme === "dark" ? "text-red-400" : "text-red-600"))}>
+                {balanceLabel}
+              </p>
+              <span className="text-xs" style={{ color: "var(--accent)" }}>
+                deste mês: {monthBalanceLabel}
+              </span>
+            </div>
           </div>
         </div>
         <button onClick={() => setShowAdjModal(true)} className="btn-secondary flex items-center gap-2 text-sm">
@@ -158,20 +187,38 @@ export default function EmployeeDetailClient({
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 p-1 bg-surface border border-base rounded-2xl w-fit">
-        {(["entries", "adjustments"] as const).map((t) => (
-          <button key={t} onClick={() => setTab(t)}
-            className={clsx("px-4 py-2 rounded-xl text-sm font-medium transition-all",
-              tab === t ? "bg-accent-subtle text-accent border-accent" : "text-2 hover:text-ink"
-            )}
-          >
-            {t === "entries" ? `Registros (${entries.length})` : `Ajustes (${adjustments.length})`}
-          </button>
-        ))}
+      <div className="flex items-center justify-between">
+        <div className="flex gap-1 p-1 bg-surface border border-base rounded-2xl w-fit">
+          {(["entries", "adjustments"] as const).map((t) => (
+            <button key={t} onClick={() => setTab(t)}
+              className={clsx("px-4 py-2 rounded-xl text-sm font-medium transition-all",
+                tab === t ? "bg-accent-subtle text-accent border-accent" : "text-2 hover:text-ink"
+              )}
+            >
+              {t === "entries" ? `Registros (${entries.length})` : `Ajustes (${adjustments.length})`}
+            </button>
+          ))}
+        </div>
+        {tab === "entries" && (
+          <div className="flex items-center gap-1">
+            <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-surface-2 transition-colors" style={{ color: "var(--text-3)" }}>
+              <ChevronLeft size={18} />
+            </button>
+            <span className="text-sm font-medium capitalize" style={{ color: "var(--text-2)" }}>{monthLabel}</span>
+            <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-surface-2 transition-colors" style={{ color: "var(--text-3)" }}>
+              <ChevronRight size={18} />
+            </button>
+          </div>
+        )}
       </div>
 
       {tab === "entries" && (
         <div className="space-y-2">
+          {entries.length === 0 && (
+            <div className="card text-center py-8 text-sm" style={{ color: "var(--text-3)" }}>
+              Nenhum registro neste mês
+            </div>
+          )}
           {entries.map((entry) => {
             const d = new Date(entry.date);
             const diff = entry.workedMinutes - entry.expectedMinutes;

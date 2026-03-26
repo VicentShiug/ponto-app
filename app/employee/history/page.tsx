@@ -5,16 +5,24 @@ import { calcWorkedMinutes, expectedDailyMinutes, formatMinutes, formatTime } fr
 import AppLayout from "@/components/AppLayout";
 import HistoryClient from "./HistoryClient";
 
-export default async function EmployeeHistory() {
+export default async function EmployeeHistory({
+  searchParams,
+}: {
+  searchParams: Promise<{ month?: string; year?: string }>;
+}) {
   const session = await getSession();
   if (!session || session.role !== "EMPLOYEE") redirect("/login");
 
   const user = await prisma.user.findUnique({ where: { id: session.userId }, select: { id: true, name: true, email: true, role: true, weeklyHours: true, workDays: true, active: true, avatarUrl: true, overtimeMode: true, passwordHash: true, createdAt: true, updatedAt: true } });
   if (!user) redirect("/login");
 
+  const params = await searchParams;
   const now = new Date();
-  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const year = params.year ? parseInt(params.year) : now.getFullYear();
+  const month = params.month ? parseInt(params.month) - 1 : now.getMonth();
+  
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
 
   const entries = await prisma.timeEntry.findMany({
     where: { userId: user.id, date: { gte: firstDay, lte: lastDay } },
@@ -84,12 +92,15 @@ export default async function EmployeeHistory() {
   const workDays = days.filter((d) => !d.isWeekend && !d.isFuture).length;
   const totalExpected = workDays * expectedPerDay;
 
+  const currentDate = new Date(year, month, 15);
+  const monthLabel = currentDate.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+
   return (
     <AppLayout userName={user.name} userRole="EMPLOYEE" avatarUrl={user.avatarUrl ?? undefined}>
       <HistoryClient
         days={days}
         weeks={weeks}
-        monthLabel={now.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+        monthLabel={monthLabel}
         totalWorkedLabel={formatMinutes(totalWorked)}
         totalExpectedLabel={formatMinutes(totalExpected)}
         balanceLabel={formatMinutes(totalWorked - totalExpected)}
