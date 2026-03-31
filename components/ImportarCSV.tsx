@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Upload, FileText, Check, X, AlertCircle, Loader2, Calendar, Clock, Eye } from "lucide-react";
 import { toast } from "./Toaster";
 import { clsx } from "clsx";
@@ -39,15 +39,30 @@ interface ImportResult {
   importados: number;
   ignorados: number;
   erros: string[];
+  employeeName?: string;
 }
 
-export default function ImportarCSV() {
+interface Employee {
+  id: string;
+  name: string;
+}
+
+interface Props {
+  userRole: "MANAGER" | "EMPLOYEE";
+  userId: string;
+  employees: Employee[];
+}
+
+export default function ImportarCSV({ userRole, userId, employees }: Props) {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState(userRole === "EMPLOYEE" ? userId : "");
+
+  const isManager = userRole === "MANAGER";
 
   async function analyzeFile(fileToAnalyze: File) {
     setLoading(true);
@@ -96,7 +111,10 @@ export default function ImportarCSV() {
       const res = await fetch("/api/ponto/importar-csv", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rows: preview.rows }),
+        body: JSON.stringify({ 
+          employeeId: selectedEmployeeId,
+          rows: preview.rows 
+        }),
       });
 
       const data = await res.json();
@@ -129,8 +147,38 @@ export default function ImportarCSV() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="rounded-lg border p-6" style={{ borderColor: "var(--border-2)", backgroundColor: "var(--surface-1)" }}>
+    <div className="max-w-2xl mx-auto space-y-6">
+      {/* Employee Selector Card (Only for managers) */}
+      {isManager && (
+        <div className="card">
+          <label className="label">Funcionário</label>
+          <select
+            value={selectedEmployeeId}
+            onChange={(e) => {
+              setSelectedEmployeeId(e.target.value);
+              handleReset(); // reset file if employee changes
+            }}
+            disabled={importing || loading}
+            className="input"
+          >
+            <option value="">Selecione o funcionário</option>
+            {employees.map((emp) => (
+              <option key={emp.id} value={emp.id}>{emp.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* Upload Card */}
+      <div className={clsx("card relative transition-opacity", isManager && !selectedEmployeeId && "opacity-60 pointer-events-none")}>
+        {isManager && !selectedEmployeeId && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-base/40 backdrop-blur-[2px] rounded-2xl">
+            <div className="bg-surface border border-line p-4 rounded-xl shadow-sm text-center">
+              <AlertCircle className="mx-auto mb-2 text-ink-3" size={24} />
+              <p className="font-medium text-ink">Selecione um funcionário para habilitar o upload</p>
+            </div>
+          </div>
+        )}
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 rounded-lg" style={{ backgroundColor: "var(--accent-subtle)" }}>
             <Upload size={20} style={{ color: "var(--accent)" }} />
@@ -330,7 +378,10 @@ export default function ImportarCSV() {
             <div className="space-y-2">
               <div className="flex items-center gap-3 p-3 rounded-lg" style={{ backgroundColor: "var(--surface-2)" }}>
                 <Check size={18} className="text-green-500" />
-                <span style={{ color: "var(--text)" }}>{result.importados} registros importados</span>
+                <span style={{ color: "var(--text)" }}>
+                  {result.importados} registros importados
+                  {result.employeeName ? ` para ${result.employeeName}` : ""}
+                </span>
               </div>
               {result.ignorados > 0 && (
                 <div className="flex items-center gap-3 p-3 rounded-lg" style={{ backgroundColor: "var(--surface-2)" }}>

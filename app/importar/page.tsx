@@ -15,10 +15,19 @@ export default async function ImportarPage() {
 
   if (!user) redirect("/login");
 
+  let employees: { id: string; name: string }[] = [];
+  if (user.role === "MANAGER") {
+    employees = await prisma.user.findMany({
+      where: { role: "EMPLOYEE" },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    });
+  }
+
   return (
     <AppLayout userName={user.name} userRole={user.role} avatarUrl={user.avatarUrl ?? undefined}>
       <div className="py-6">
-        <ImportarCSV />
+        <ImportarCSV userRole={user.role} userId={user.id} employees={employees} />
       </div>
     </AppLayout>
   );

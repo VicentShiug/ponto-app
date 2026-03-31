@@ -56,6 +56,19 @@ export default function EmployeeDetailClient({
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // states for edit/delete adjustments
+  const [showDeleteAdjModal, setShowDeleteAdjModal] = useState(false);
+  const [deletingAdj, setDeletingAdj] = useState(false);
+  const [selectedAdj, setSelectedAdj] = useState<Adjustment | null>(null);
+
+  const [showEditAdjModal, setShowEditAdjModal] = useState(false);
+  const [editingAdj, setEditingAdj] = useState<Adjustment | null>(null);
+  const [editAdjHours, setEditAdjHours] = useState("");
+  const [editAdjMinutes, setEditAdjMinutes] = useState("");
+  const [editAdjReason, setEditAdjReason] = useState("");
+  const [editAdjType, setEditAdjType] = useState<"add" | "remove">("add");
+  const [savingAdj, setSavingAdj] = useState(false);
+
   function goToMonth(year: number, month: number) {
     router.push(`/manager/employees/${employee.id}?year=${year}&month=${month}`);
   }
@@ -163,6 +176,63 @@ export default function EmployeeDetailClient({
     finally { setDeleting(false); }
   }
 
+  function openDeleteAdj(adj: Adjustment) {
+    setSelectedAdj(adj);
+    setShowDeleteAdjModal(true);
+  }
+
+  async function handleDeleteAdj() {
+    if (!selectedAdj) return;
+    setDeletingAdj(true);
+    try {
+      const res = await fetch(`/api/manager/hour-bank/${selectedAdj.id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) { toast(data.error || "Erro ao excluir ajuste", "error"); return; }
+      toast("Ajuste removido!", "success");
+      setShowDeleteAdjModal(false);
+      setSelectedAdj(null);
+      router.refresh();
+    } catch { toast("Erro de conexão", "error"); }
+    finally { setDeletingAdj(false); }
+  }
+
+  function openEditAdj(adj: Adjustment) {
+    setEditingAdj(adj);
+    const absMinutes = Math.abs(adj.minutes);
+    setEditAdjHours(Math.floor(absMinutes / 60).toString());
+    setEditAdjMinutes((absMinutes % 60).toString());
+    setEditAdjReason(adj.reason);
+    setEditAdjType(adj.minutes >= 0 ? "add" : "remove");
+    setShowEditAdjModal(true);
+  }
+
+  async function handleEditAdj() {
+    if (!editingAdj) return;
+    const hours = parseInt(editAdjHours) || 0;
+    const mins = parseInt(editAdjMinutes) || 0;
+    const totalMinutes = hours * 60 + mins;
+    if (!totalMinutes || !editAdjReason.trim()) { toast("Preencha todos os campos", "error"); return; }
+
+    setSavingAdj(true);
+    try {
+      const res = await fetch(`/api/manager/hour-bank/${editingAdj.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          minutes: editAdjType === "add" ? totalMinutes : -totalMinutes,
+          reason: editAdjReason,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { toast(data.error || "Erro ao editar ajuste", "error"); return; }
+      toast("Ajuste editado!", "success");
+      setShowEditAdjModal(false);
+      setEditingAdj(null);
+      router.refresh();
+    } catch { toast("Erro de conexão", "error"); }
+    finally { setSavingAdj(false); }
+  }
+
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
       <div className="flex items-center gap-3">
@@ -202,7 +272,7 @@ export default function EmployeeDetailClient({
         </button>
       </div>
 
-      {entries.length > 0 && (
+      {tab === "entries" && entries.length > 0 && (
         <div className="flex justify-end">
           <button onClick={() => setShowDeleteModal(true)} className="flex items-center gap-2 text-sm px-3 py-2 rounded-xl border border-red-500/30 text-red-500 hover:bg-red-500/10 transition-all">
             <Trash2 size={15} /> Apagar todos os registros
@@ -326,6 +396,22 @@ export default function EmployeeDetailClient({
               <p className={clsx("font-syne font-bold", adj.minutes >= 0 ? (theme === "dark" ? "text-green-400" : "text-green-600") : (theme === "dark" ? "text-red-400" : "text-red-600"))}>
                 {adj.minutes >= 0 ? "+" : ""}{formatMinutes(adj.minutes)}
               </p>
+              <div className="flex gap-2 shrink-0">
+                <button
+                  onClick={() => openEditAdj(adj)}
+                  className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                  title="Editar ajuste"
+                >
+                  <Edit2 size={15} />
+                </button>
+                <button
+                  onClick={() => openDeleteAdj(adj)}
+                  className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                  title="Remover ajuste"
+                >
+                  <Trash2 size={15} />
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -401,6 +487,82 @@ export default function EmployeeDetailClient({
                 <button onClick={handleDeleteAllEntries} disabled={deleting} 
                   className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-red-500 text-white hover:bg-red-600 transition-all disabled:opacity-50">
                   {deleting ? "Excluindo..." : "Confirmar exclusão"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEditAdjModal && (
+        <div className="fixed z-50" style={{ top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <div className="w-full min-h-screen flex items-center justify-center p-4">
+            <div className="w-full max-w-sm bg-surface border border-base rounded-2xl p-6 animate-fade-in">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="font-syne font-bold text-lg" style={{ color: "var(--text)" }}>Editar Ajuste</h2>
+                <button onClick={() => setShowEditAdjModal(false)} className="text-3 hover:text-ink"><X size={20} /></button>
+              </div>
+              <div className="space-y-4">
+                <div className="flex gap-2">
+                  {(["add","remove"] as const).map((t) => (
+                    <button key={t} onClick={() => setEditAdjType(t)}
+                      className={clsx("flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all flex items-center justify-center gap-2",
+                        editAdjType === t
+                          ? t === "add"
+                            ? theme === "dark" ? "bg-green-500/15 border-green-500/30 text-green-400" : "bg-green-600/15 border-green-600/30 text-green-600"
+                            : theme === "dark" ? "bg-red-500/15 border-red-500/30 text-red-400" : "bg-red-600/15 border-red-600/30 text-red-600"
+                          : "border-base text-2 hover:text-ink"
+                      )}
+                    >
+                      {t === "add" ? <><Plus size={14} /> Adicionar</> : <><Minus size={14} /> Descontar</>}
+                    </button>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="label">Horas</label>
+                    <input className="input" type="number" min="0" value={editAdjHours}
+                      onChange={(e) => setEditAdjHours(e.target.value)} placeholder="ex: 2" />
+                  </div>
+                  <div>
+                    <label className="label">Minutos</label>
+                    <input className="input" type="number" min="0" max="59" value={editAdjMinutes}
+                      onChange={(e) => setEditAdjMinutes(e.target.value)} placeholder="ex: 30" />
+                  </div>
+                </div>
+                <div>
+                  <label className="label">Motivo</label>
+                  <textarea className="input resize-none" rows={3} value={editAdjReason}
+                    onChange={(e) => setEditAdjReason(e.target.value)} placeholder="Descreva o motivo do ajuste..." />
+                </div>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button onClick={() => setShowEditAdjModal(false)} className="btn-secondary flex-1">Cancelar</button>
+                <button onClick={handleEditAdj} disabled={savingAdj} className="btn-primary flex-1">
+                  {savingAdj ? "Salvando..." : "Salvar alterações"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteAdjModal && (
+        <div className="fixed z-50" style={{ top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <div className="w-full min-h-screen flex items-center justify-center p-4">
+            <div className="w-full max-w-sm bg-surface border border-base rounded-2xl p-6 animate-fade-in">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="font-syne font-bold text-lg" style={{ color: "var(--text)" }}>Confirmar exclusão</h2>
+                <button onClick={() => setShowDeleteAdjModal(false)} className="text-3 hover:text-ink"><X size={20} /></button>
+              </div>
+              <p className="text-sm mb-4" style={{ color: "var(--text-2)" }}>
+                Tem certeza que deseja remover este ajuste? Esta ação não pode ser desfeita.
+              </p>
+              <div className="flex gap-3 mt-6">
+                <button onClick={() => setShowDeleteAdjModal(false)} className="btn-secondary flex-1">Cancelar</button>
+                <button onClick={handleDeleteAdj} disabled={deletingAdj} 
+                  className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-red-500 text-white hover:bg-red-600 transition-all disabled:opacity-50">
+                  {deletingAdj ? "Excluindo..." : "Remover"}
                 </button>
               </div>
             </div>

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { parseDate, parseTime, addHours, addMinutes, startOfDay } from "@/lib/dates";
 
 const importSchema = z.object({
+  employeeId: z.string().optional(),
   rows: z.array(z.object({
     date: z.string(),
     clockIn: z.string().nullable(),
@@ -23,6 +24,29 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const body = await req.json();
     const data = importSchema.parse(body);
 
+    let targetUserId = session.userId;
+    let targetEmployeeName: string | undefined = undefined;
+
+    if (session.role === "MANAGER") {
+      if (!data.employeeId) {
+        return NextResponse.json({ error: "Selecione um funcionário" }, { status: 400 });
+      }
+
+      const targetEmployee = await prisma.user.findFirst({
+        where: {
+          id: data.employeeId,
+          role: "EMPLOYEE"
+        }
+      });
+
+      if (!targetEmployee) {
+        return NextResponse.json({ error: "Funcionário inválido ou não encontrado" }, { status: 400 });
+      }
+
+      targetUserId = targetEmployee.id;
+      targetEmployeeName = targetEmployee.name;
+    }
+
     const imported: number[] = [];
     const ignored: string[] = [];
     const errors: string[] = [];
@@ -35,12 +59,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           await prisma.timeEntry.upsert({
             where: {
               userId_date: {
-                userId: session.userId,
+                userId: targetUserId,
                 date,
               },
             },
             create: {
-              userId: session.userId,
+              userId: targetUserId,
+
               date,
               notes: row.description || null,
             },
@@ -82,12 +107,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           await prisma.timeEntry.upsert({
             where: {
               userId_date: {
-                userId: session.userId,
+                userId: targetUserId,
                 date,
               },
             },
             create: {
-              userId: session.userId,
+              userId: targetUserId,
+
               date,
               ...updateData,
             },
@@ -105,6 +131,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       importados: imported.length,
       ignorados: ignored.length,
       erros: errors,
+      employeeName: targetEmployeeName,
     });
   } catch (err) {
     if (err instanceof z.ZodError) {
