@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { calcWorkedMinutes, expectedDailyMinutes, formatMinutes, formatTime } from "@/lib/hours";
-import { getDay, subDays, startOfDay, parseDateFromAPI } from "@/lib/dates";
+import { subDays, startOfDay } from "@/lib/dates";
+import { calculateDynamicBalance } from "@/lib/hour-bank";
 import AppLayout from "@/components/AppLayout";
 import EmployeeDashboardClient from "./DashboardClient";
 
@@ -27,24 +28,10 @@ export default async function EmployeeDashboard() {
     orderBy: { date: "desc" },
   });
 
-  const adjustments = await prisma.hourBankAdjustment.findMany({
-    where: { userId: user.id },
-  });
-
   const userWorkDays = user.workDays || [1,2,3,4,5];
   const expectedPerDay = expectedDailyMinutes(user.weeklyHours, userWorkDays);
-  let balanceMinutes = 0;
-
-  for (const entry of entries) {
-    const dayOfWeek = getDay(parseDateFromAPI(entry.date.toString()));
-    if (!userWorkDays.includes(dayOfWeek)) continue;
-    const worked = calcWorkedMinutes(entry);
-    balanceMinutes += worked - expectedPerDay;
-  }
-
-  for (const adj of adjustments) {
-    balanceMinutes += adj.minutes;
-  }
+  
+  const balanceMinutes = await calculateDynamicBalance(user.id);
 
   let currentStep: 0 | 1 | 2 | 3 | 4 = 0;
   if (todayEntry) {
@@ -71,6 +58,12 @@ export default async function EmployeeDashboard() {
       <EmployeeDashboardClient
         user={{ name: user.name, weeklyHours: user.weeklyHours, overtimeMode: user.overtimeMode }}
         todayEntryId={todayEntry?.id ?? null}
+        todayEntry={todayEntry ? {
+          clockIn: formatTime(todayEntry.clockIn),
+          lunchOut: formatTime(todayEntry.lunchOut),
+          lunchIn: formatTime(todayEntry.lunchIn),
+          clockOut: formatTime(todayEntry.clockOut),
+        } : null}
         currentStep={currentStep}
         balanceMinutes={balanceMinutes}
         balanceLabel={formatMinutes(balanceMinutes)}

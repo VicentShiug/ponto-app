@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireManager } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { calcWorkedMinutes, expectedDailyMinutes } from "@/lib/hours";
+import { calcWorkedMinutes, expectedDailyMinutes, calculateHourBankBalance } from "@/lib/hours";
 import { getDay, startOfDay, endOfDay, format } from "@/lib/dates";
 
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -39,14 +39,12 @@ export async function GET(req: NextRequest) {
         const userWorkDays = user.workDays || [1,2,3,4,5];
         const expectedPerDay = expectedDailyMinutes(user.weeklyHours, userWorkDays);
 
-        const adjustments = await prisma.hourBankAdjustment.findMany({ where: { userId: id } });
-        
-        let balanceMinutes = 0;
+        const balanceMinutes = await calculateHourBankBalance(id);
         const serialized = entries.map((e) => {
           const dow = getDay(e.date);
           const worked = calcWorkedMinutes(e);
-          const diff = !userWorkDays.includes(dow) ? 0 : worked - expectedPerDay;
-          balanceMinutes += diff;
+          const has4 = e.clockIn && e.lunchOut && e.lunchIn && e.clockOut;
+          const diff = (!userWorkDays.includes(dow) || !has4) ? 0 : worked - expectedPerDay;
           return {
             date: format(e.date, "dd/MM/yyyy"),
             weekday: WEEKDAYS[dow],
@@ -58,8 +56,6 @@ export async function GET(req: NextRequest) {
             diff,
           };
         });
-
-        for (const adj of adjustments) balanceMinutes += adj.minutes;
 
         return {
           employeeId: id,

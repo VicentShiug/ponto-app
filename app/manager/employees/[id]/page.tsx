@@ -2,7 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
-  calcWorkedMinutes, expectedDailyMinutes, formatMinutes, formatTime,
+  calcWorkedMinutes, expectedDailyMinutes, formatMinutes, formatTime, calculateHourBankBalance
 } from "@/lib/hours";
 import { getDay, getYear, getMonth, startOfMonth, endOfMonth, isWithinInterval, isSameDay, parseDateFromAPI } from "@/lib/dates";
 import AppLayout from "@/components/AppLayout";
@@ -47,24 +47,8 @@ export default async function EmployeeDetailPage({
   });
 
   const expectedPerDay = expectedDailyMinutes(employee.weeklyHours);
-  let balanceMinutes = 0;
-  for (const entry of allEntries) {
-    const dow = getDay(parseDateFromAPI(entry.date.toString()));
-    if (dow === 0 || dow === 6) continue;
-    balanceMinutes += calcWorkedMinutes(entry) - expectedPerDay;
-  }
-  for (const adj of adjustments) balanceMinutes += adj.minutes;
-
-  let monthBalanceMinutes = 0;
-  for (const entry of monthEntries) {
-    const dow = getDay(parseDateFromAPI(entry.date.toString()));
-    if (dow === 0 || dow === 6) continue;
-    monthBalanceMinutes += calcWorkedMinutes(entry) - expectedPerDay;
-  }
-  const monthAdjustments = adjustments.filter((a) => {
-    return isWithinInterval(a.createdAt, { start: monthFirstDay, end: monthLastDay });
-  });
-  for (const adj of monthAdjustments) monthBalanceMinutes += adj.minutes;
+  const balanceMinutes = await calculateHourBankBalance(employee.id);
+  const monthBalanceMinutes = await calculateHourBankBalance(employee.id, { start: monthFirstDay, end: monthLastDay });
 
   const serializedEntries = monthEntries.map((e) => ({
     id: e.id,

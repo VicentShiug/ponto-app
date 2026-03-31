@@ -1,10 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { clsx } from "clsx";
-import { Plus, Minus, TrendingUp, TrendingDown } from "lucide-react";
+import { Plus, Minus, TrendingUp, Calendar, Clock, ChevronDown, ChevronUp } from "lucide-react";
 import { formatMinutes } from "@/lib/hours";
-import { getYear, getMonth } from "@/lib/dates";
 import { useTheme } from "@/components/ThemeProvider";
+import type { HourBankDetails } from "@/lib/hour-bank";
 
 interface Adjustment {
   id: string;
@@ -15,101 +16,206 @@ interface Adjustment {
 }
 
 interface Props {
-  balanceMinutes: number;
-  balanceLabel: string;
+  details: HourBankDetails;
   overtimeMode: string;
   adjustments: Adjustment[];
 }
 
 const MONTHS = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
-export default function BankClient({ balanceMinutes, balanceLabel, overtimeMode, adjustments }: Props) {
+export default function BankClient({ details, overtimeMode, adjustments }: Props) {
   const { theme } = useTheme();
-  const positive = balanceMinutes >= 0;
+  const [expandedMonths, setExpandedMonths] = useState<Record<string, boolean>>(() => {
+    if (details.monthlyData.length > 0) {
+      return { [details.monthlyData[0].monthKey]: true };
+    }
+    return {};
+  });
+
+  const toggleMonth = (monthKey: string) => {
+    setExpandedMonths(prev => ({ ...prev, [monthKey]: !prev[monthKey] }));
+  };
+
+  const isDark = theme === "dark";
+  
+  const getValueColor = (val: number) => {
+    if (val > 0) return isDark ? "text-green-400" : "text-green-600";
+    if (val < 0) return isDark ? "text-red-400" : "text-red-500";
+    return isDark ? "text-gray-500" : "text-gray-400";
+  };
+
+  const overtimeTitle = overtimeMode === "HOUR_BANK" ? "Banco de Horas" : "Horas Extras";
 
   const adjustmentsByMonth: Record<string, Adjustment[]> = {};
-  
   for (const adj of adjustments) {
     const date = new Date(adj.createdAt);
-    const monthKey = `${getYear(date)}-${getMonth(date).toString().padStart(2, "0")}`;
-    if (!adjustmentsByMonth[monthKey]) {
-      adjustmentsByMonth[monthKey] = [];
-    }
+    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    if (!adjustmentsByMonth[monthKey]) adjustmentsByMonth[monthKey] = [];
     adjustmentsByMonth[monthKey].push(adj);
   }
+  const sortedAdjMonths = Object.keys(adjustmentsByMonth).sort().reverse();
 
-  const sortedMonths = Object.keys(adjustmentsByMonth).sort().reverse();
+  // Helper variables for theming to keep the markup clean
+  const bgCard = isDark ? "bg-gray-800" : "bg-white";
+  const borderCard = isDark ? "border-gray-700" : "border-gray-100";
+  const textTitle = isDark ? "text-gray-200" : "text-gray-700";
+  const textTitleBright = isDark ? "text-white" : "text-gray-900";
+  const textSub = isDark ? "text-gray-500" : "text-gray-400";
+  const bgRow = isDark ? "bg-gray-900" : "bg-gray-50";
+  const hoverRow = isDark ? "hover:bg-gray-700" : "hover:bg-gray-100";
 
   return (
-    <div className="max-w-3xl mx-auto space-y-5">
+    <div className="max-w-4xl mx-auto space-y-6">
       <div>
-        <h1 className="font-syne text-2xl font-bold" style={{ color: "var(--text)" }}>Banco de Horas</h1>
-        <p className="text-sm mt-0.5" style={{ color: "var(--text-3)" }}>Histórico de ajustes</p>
+        <h1 className={clsx("font-syne text-2xl font-bold", textTitleBright)}>{overtimeTitle}</h1>
+        <p className={clsx("text-sm mt-0.5", textSub)}>Acompanhamento detalhado do seu saldo</p>
       </div>
 
-      {/* Card de saldo */}
-      <div className="card flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className={clsx("w-12 h-12 rounded-2xl flex items-center justify-center", 
-            positive ? (theme === "dark" ? "bg-green-500/15" : "bg-green-600/15") : (theme === "dark" ? "bg-red-500/15" : "bg-red-600/15")
-          )}>
-            {positive ? <TrendingUp size={22} className={theme === "dark" ? "text-green-400" : "text-green-600"} /> : <TrendingDown size={22} className={theme === "dark" ? "text-red-400" : "text-red-600"} />}
+      {/* 1. Cards de Resumo */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Saldo Total */}
+        <div className={clsx("border shadow-sm rounded-xl p-5 flex flex-col justify-between", bgCard, borderCard)}>
+          <div className={clsx("flex items-center gap-2 mb-2", textTitle)}>
+            <TrendingUp size={16} className={textSub} />
+            <p className={clsx("text-xs font-medium uppercase tracking-wide", textSub)}>Saldo Total</p>
           </div>
           <div>
-            <p className="text-xs text-3 uppercase tracking-widest">
-              {overtimeMode === "HOUR_BANK" ? "Banco de Horas" : "Horas Extras"}
+            <p className={clsx("text-2xl font-semibold", getValueColor(details.totalBalance))}>
+              {formatMinutes(details.totalBalance)}
             </p>
-            <p className={clsx("font-syne text-3xl font-bold", positive ? (theme === "dark" ? "text-green-400" : "text-green-600") : (theme === "dark" ? "text-red-400" : "text-red-600"))}>
-              {balanceLabel}
+          </div>
+        </div>
+
+        {/* Mês Atual */}
+        <div className={clsx("border shadow-sm rounded-xl p-5 flex flex-col justify-between", bgCard, borderCard)}>
+          <div className={clsx("flex items-center gap-2 mb-2", textTitle)}>
+            <Calendar size={16} className={textSub} />
+            <p className={clsx("text-xs font-medium uppercase tracking-wide", textSub)}>Mês Atual</p>
+          </div>
+          <div>
+            <p className={clsx("text-2xl font-semibold", getValueColor(details.currentMonthBalance))}>
+              {formatMinutes(details.currentMonthBalance)}
+            </p>
+          </div>
+        </div>
+
+        {/* Ajustes Recebidos */}
+        <div className={clsx("border shadow-sm rounded-xl p-5 flex flex-col justify-between", bgCard, borderCard)}>
+          <div className={clsx("flex items-center gap-2 mb-2", textTitle)}>
+            <Clock size={16} className={textSub} />
+            <p className={clsx("text-xs font-medium uppercase tracking-wide", textSub)}>Ajustes Recebidos</p>
+          </div>
+          <div>
+            <p className={clsx("text-2xl font-semibold", getValueColor(details.totalAdjustments))}>
+              {formatMinutes(details.totalAdjustments)}
             </p>
           </div>
         </div>
       </div>
 
-      {/* Lista de ajustes por mês */}
-      <div className="card">
-        <p className="text-[10px] uppercase tracking-widest mb-4" style={{ color: "var(--text-3)" }}>Histórico de ajustes</p>
+      {/* 2. Histórico Mensal */}
+      <div className="space-y-4">
+        <h2 className={clsx("font-syne text-lg font-bold mt-8 mb-4", textTitleBright)}>Histórico Mensal</h2>
         
+        {details.monthlyData.length === 0 ? (
+          <div className={clsx("text-center py-8 text-sm border rounded-xl shadow-sm", bgCard, borderCard, textSub)}>
+            Nenhum histórico encontrado
+          </div>
+        ) : (
+          details.monthlyData.map((month) => {
+            const isExpanded = !!expandedMonths[month.monthKey];
+            
+            return (
+              <div key={month.monthKey} className={clsx("border shadow-sm rounded-xl overflow-hidden transition-all duration-200", bgCard, borderCard)}>
+                <button 
+                  onClick={() => toggleMonth(month.monthKey)}
+                  className={clsx("w-full flex items-center justify-between py-4 px-5 transition-colors", 
+                    isDark ? "hover:bg-gray-700" : "hover:bg-gray-50"
+                  )}
+                >
+                  <div className="text-left">
+                    <p className={clsx("font-medium", textTitle)}>{month.monthLabel}</p>
+                    <p className={clsx("text-xs", textSub)}>{month.daysWorked} dias apontados</p>
+                  </div>
+                  
+                  <div className="flex items-center gap-4">
+                    <p className={clsx("font-semibold", getValueColor(month.balanceMinutes))}>
+                      {formatMinutes(month.balanceMinutes)}
+                    </p>
+                    <div className={textSub}>
+                      {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                    </div>
+                  </div>
+                </button>
+                
+                {isExpanded && (
+                  <div className={clsx("border-t", borderCard, bgCard)}>
+                    {month.outliers.length === 0 ? (
+                      <div className={clsx("py-4 px-5 text-sm", textSub)}>
+                        <p>Nenhuma variação maior que ±30 minutos neste mês.</p>
+                      </div>
+                    ) : (
+                      <div className="p-2 space-y-1">
+                        {month.outliers.map((outlier, i) => {
+                          return (
+                            <div key={i} className={clsx("flex justify-between items-center py-3 px-4 rounded-lg transition-colors", bgRow, hoverRow)}>
+                              <span className={clsx("text-sm", isDark ? "text-gray-400" : "text-gray-500")}>{outlier.dateLabel}</span>
+                              <span className={clsx("text-sm font-medium", getValueColor(outlier.deltaMinutes))}>
+                                {formatMinutes(outlier.deltaMinutes)}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* 3. Lista de Histórico de Ajustes */}
+      <h2 className={clsx("font-syne text-lg font-bold mt-10 mb-4", textTitleBright)}>Histórico de Ajustes</h2>
+      <div className={clsx("border shadow-sm rounded-xl p-5", bgCard, borderCard)}>
         {adjustments.length === 0 ? (
-          <div className="text-center py-8 text-sm" style={{ color: "var(--text-3)" }}>
+          <div className={clsx("text-center py-6 text-sm", textSub)}>
             Nenhum ajuste registrado
           </div>
         ) : (
           <div className="space-y-6">
-            {sortedMonths.map((monthKey) => {
+            {sortedAdjMonths.map((monthKey) => {
               const [year, month] = monthKey.split("-");
-              const monthLabel = `${MONTHS[parseInt(month)]} ${year}`;
+              const monthLabel = `${MONTHS[parseInt(month) - 1]} ${year}`;
               const monthAdjustments = adjustmentsByMonth[monthKey];
 
               return (
                 <div key={monthKey}>
-                  <p className="text-xs uppercase tracking-widest mb-3" style={{ color: "var(--text-3)" }}>{monthLabel}</p>
+                  <p className={clsx("text-xs font-medium uppercase tracking-widest mb-3", textSub)}>{monthLabel}</p>
                   <div className="space-y-2">
                     {monthAdjustments.map((adj) => {
                       const isAdd = adj.minutes >= 0;
-                      const colorClass = isAdd 
-                        ? theme === "dark" ? "text-green-400" : "text-green-600"
-                        : theme === "dark" ? "text-red-400" : "text-red-600";
-                      const bgClass = isAdd
-                        ? theme === "dark" ? "bg-green-500/15" : "bg-green-600/15"
-                        : theme === "dark" ? "bg-red-500/15" : "bg-red-600/15";
-
                       return (
-                        <div key={adj.id} className="rounded-xl p-3" style={{ backgroundColor: "var(--surface-2)", border: "1px solid var(--border)" }}>
-                          <div className="flex items-center gap-3">
-                            <div className={clsx("w-9 h-9 rounded-xl flex items-center justify-center shrink-0", bgClass)}>
-                              {isAdd ? <Plus size={16} className={colorClass} /> : <Minus size={16} className={colorClass} />}
+                        <div key={adj.id} className={clsx("rounded-xl py-3 px-4", bgRow)}>
+                          <div className="flex items-center gap-4">
+                            <div className={clsx("w-8 h-8 rounded-full flex items-center justify-center shrink-0 border", 
+                              isDark ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"
+                            )}>
+                              {isAdd ? <Plus size={14} className={getValueColor(adj.minutes)} /> : <Minus size={14} className={getValueColor(adj.minutes)} />}
                             </div>
                             <div className="flex-1">
-                              <p className="text-sm" style={{ color: "var(--text)" }}>
+                              <p className={clsx("text-sm", textTitle)}>
                                 <span className="font-medium">{adj.managerName}</span>{" "}
-                                <span style={{ color: "var(--text-2)" }}> {isAdd ? "adicionou" : "descontou"} </span>
-                                <span className={colorClass}>{formatMinutes(Math.abs(adj.minutes))}</span>
-                                <span style={{ color: "var(--text-2)" }}> {isAdd ? "no banco de horas" : "do banco de horas"}</span>
+                                <span className={textSub}> {isAdd ? "adicionou" : "descontou"} </span>
+                                <span className={getValueColor(adj.minutes)}>{formatMinutes(Math.abs(adj.minutes))}</span>
+                                <span className={textSub}> {isAdd ? "no banco de horas" : "do banco de horas"}</span>
                               </p>
-                              <p className="text-xs mt-0.5" style={{ color: "var(--text-3)" }}>{adj.reason}</p>
+                              {adj.reason && (
+                                <p className={clsx("text-xs mt-0.5", textSub)}>{adj.reason}</p>
+                              )}
                             </div>
-                            <p className="text-xs shrink-0" style={{ color: "var(--text-3)" }}>
+                            <p className={clsx("text-xs shrink-0", textSub)}>
                               {new Date(adj.createdAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
                             </p>
                           </div>
@@ -123,6 +229,7 @@ export default function BankClient({ balanceMinutes, balanceLabel, overtimeMode,
           </div>
         )}
       </div>
+
     </div>
   );
 }

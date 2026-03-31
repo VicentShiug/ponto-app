@@ -1,15 +1,16 @@
 import { TimeEntry } from "@prisma/client";
 import { getDay, differenceInMinutes } from "date-fns";
+import { prisma } from "@/lib/prisma";
+import { parseDateFromAPI } from "@/lib/dates";
 
 export function calcWorkedMinutes(entry: TimeEntry): number {
   if (!entry.clockIn || !entry.clockOut) return 0;
 
-  const totalMs = entry.clockOut.getTime() - entry.clockIn.getTime();
-  let totalMinutes = Math.floor(totalMs / 60000);
+  let totalMinutes = differenceInMinutes(entry.clockOut, entry.clockIn);
 
   if (entry.lunchOut && entry.lunchIn) {
-    const lunchMs = entry.lunchIn.getTime() - entry.lunchOut.getTime();
-    totalMinutes -= Math.floor(lunchMs / 60000);
+    const lunchMinutes = differenceInMinutes(entry.lunchIn, entry.lunchOut);
+    totalMinutes -= lunchMinutes;
   }
 
   return Math.max(0, totalMinutes);
@@ -76,4 +77,58 @@ export function getEntryStatus(
   if (!entry) return "absent";
   if (entry.clockIn && entry.clockOut) return "complete";
   return "incomplete";
+}
+
+export async function calculateHourBankBalance(
+  userId: string,
+  options?: { start?: Date; end?: Date }
+): Promise<number> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { weeklyHours: true, workDays: true },
+  });
+
+  if (!user) throw new Error("Usuário não encontrado");
+
+  const dateFilter = options?.start || options?.end ? {
+    ...(options.start ? { gte: options.start } : {}),
+    ...(options.end ? { lte: options.end } : {}),
+  } : undefined;
+
+  const entries = await prisma.timeEntry.findMany({
+    where: { 
+      userId,
+      ...(dateFilter ? { date: dateFilter } : {})
+    },
+  });
+
+  const adjustments = await prisma.hourBankAdjustment.findMany({
+    where: { 
+      userId,
+      ...(dateFilter ? { createdAt: dateFilter } : {})
+    },
+  });
+
+  const userWorkDays = user.workDays || [1, 2, 3, 4, 5];
+  const expectedPerDay = expectedDailyMinutes(user.weeklyHours, userWorkDays);
+  
+  let balanceMinutes = 0;
+
+  for (const entry of entries) {
+    const entryDate = parseDateFromAPI(entry.date.toISOString());
+    const dayOfWeek = getDay(entryDate);
+    
+    if (!userWorkDays.includes(dayOfWeek)) continue;
+    
+    if (entry.clockIn && entry.lunchOut && entry.lunchIn && entry.clockOut) {
+      const worked = calcWorkedMinutes(entry);
+      balanceMinutes += worked - expectedPerDay;
+    }
+  }
+
+  for (const adj of adjustments) {
+    balanceMinutes += adj.minutes;
+  }
+
+  return balanceMinutes;
 }

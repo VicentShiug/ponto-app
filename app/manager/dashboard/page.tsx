@@ -5,6 +5,7 @@ import {
   calcWorkedMinutes,
   expectedDailyMinutes,
   formatMinutes,
+  calculateHourBankBalance,
 } from "@/lib/hours";
 import { getDay, subDays, startOfDay, isSameDay, formatDateISO, parseDateFromAPI } from "@/lib/dates";
 import AppLayout from "@/components/AppLayout";
@@ -35,17 +36,7 @@ export default async function ManagerDashboard() {
         where: { userId: emp.id, date: { gte: since90 } },
       });
 
-      const adjustments = await prisma.hourBankAdjustment.findMany({
-        where: { userId: emp.id },
-      });
-
-      let balanceMinutes = 0;
-      for (const entry of entries) {
-        const dow = getDay(parseDateFromAPI(entry.date.toISOString()));
-        if (dow === 0 || dow === 6) continue;
-        balanceMinutes += calcWorkedMinutes(entry) - expectedPerDay;
-      }
-      for (const adj of adjustments) balanceMinutes += adj.minutes;
+      const balanceMinutes = await calculateHourBankBalance(emp.id);
 
       const todayEntry = entries.find(
         (e) => isSameDay(parseDateFromAPI(e.date.toISOString()), today)
