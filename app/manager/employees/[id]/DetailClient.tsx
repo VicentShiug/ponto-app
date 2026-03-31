@@ -69,6 +69,18 @@ export default function EmployeeDetailClient({
   const [editAdjType, setEditAdjType] = useState<"add" | "remove">("add");
   const [savingAdj, setSavingAdj] = useState(false);
 
+  // states for edit employee
+  const [emp, setEmp] = useState(employee);
+  const [showEditEmpModal, setShowEditEmpModal] = useState(false);
+  const [empForm, setEmpForm] = useState({
+    name: employee.name,
+    email: employee.email,
+    password: "",
+    weeklyHours: String(employee.weeklyHours),
+    overtimeMode: employee.overtimeMode as "HOUR_BANK" | "OVERTIME",
+  });
+  const [savingEmp, setSavingEmp] = useState(false);
+
   function goToMonth(year: number, month: number) {
     router.push(`/manager/employees/${employee.id}?year=${year}&month=${month}`);
   }
@@ -233,6 +245,27 @@ export default function EmployeeDetailClient({
     finally { setSavingAdj(false); }
   }
 
+  async function handleEditEmployee() {
+    setSavingEmp(true);
+    try {
+      const res = await fetch(`/api/manager/employees/${emp.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...empForm,
+          weeklyHours: Number(empForm.weeklyHours),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { toast(data.error || "Erro ao editar funcionário", "error"); return; }
+      toast("Dados atualizados!", "success");
+      setEmp(data.user);
+      setShowEditEmpModal(false);
+      router.refresh();
+    } catch { toast("Erro de conexão", "error"); }
+    finally { setSavingEmp(false); }
+  }
+
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
       <div className="flex items-center gap-3">
@@ -240,8 +273,8 @@ export default function EmployeeDetailClient({
           <ArrowLeft size={18} />
         </Link>
         <div>
-          <h1 className="font-syne text-2xl font-bold" style={{ color: "var(--text)" }}>{employee.name}</h1>
-          <p className="text-3 text-sm">{employee.email} · {employee.weeklyHours}h/sem</p>
+          <h1 className="font-syne text-2xl font-bold" style={{ color: "var(--text)" }}>{emp.name}</h1>
+          <p className="text-3 text-sm">{emp.email} · {emp.weeklyHours}h/sem</p>
         </div>
       </div>
 
@@ -255,7 +288,7 @@ export default function EmployeeDetailClient({
           </div>
           <div>
             <p className="text-xs text-3 uppercase tracking-widest">
-              {employee.overtimeMode === "HOUR_BANK" ? "Banco de Horas" : "Horas Extras"}
+              {emp.overtimeMode === "HOUR_BANK" ? "Banco de Horas" : "Horas Extras"}
             </p>
             <div className="flex items-baseline gap-2">
               <p className={clsx("font-syne text-3xl font-bold", positive ? (theme === "dark" ? "text-green-400" : "text-green-600") : (theme === "dark" ? "text-red-400" : "text-red-600"))}>
@@ -267,9 +300,14 @@ export default function EmployeeDetailClient({
             </div>
           </div>
         </div>
-        <button onClick={() => setShowAdjModal(true)} className="btn-secondary flex items-center gap-2 text-sm">
-          <Plus size={15} /> Ajustar
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => setShowEditEmpModal(true)} className="btn-secondary flex items-center gap-2 text-sm px-3">
+            <Edit2 size={15} /> Editar
+          </button>
+          <button onClick={() => setShowAdjModal(true)} className="btn-secondary flex items-center gap-2 text-sm">
+            <Plus size={15} /> Ajustar
+          </button>
+        </div>
       </div>
 
       {tab === "entries" && entries.length > 0 && (
@@ -563,6 +601,52 @@ export default function EmployeeDetailClient({
                 <button onClick={handleDeleteAdj} disabled={deletingAdj} 
                   className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-red-500 text-white hover:bg-red-600 transition-all disabled:opacity-50">
                   {deletingAdj ? "Excluindo..." : "Remover"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {showEditEmpModal && (
+        <div className="fixed z-50" style={{ top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <div className="w-full h-full flex items-center justify-center p-4">
+            <div className="w-full max-w-md bg-surface border border-base rounded-2xl p-6 animate-fade-in">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="font-syne font-bold text-lg" style={{ color: "var(--text)" }}>Editar Funcionário</h2>
+                <button onClick={() => setShowEditEmpModal(false)} className="text-3 hover:text-ink"><X size={20} /></button>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="label">Nome</label>
+                  <input className="input" value={empForm.name} onChange={(e) => setEmpForm({ ...empForm, name: e.target.value })} placeholder="Nome completo" />
+                </div>
+                <div>
+                  <label className="label">E-mail</label>
+                  <input className="input" type="email" value={empForm.email} onChange={(e) => setEmpForm({ ...empForm, email: e.target.value })} placeholder="email@empresa.com" />
+                </div>
+                <div>
+                  <label className="label">Nova Senha (deixe vazio para manter)</label>
+                  <input className="input" type="password" value={empForm.password} onChange={(e) => setEmpForm({ ...empForm, password: e.target.value })} placeholder="••••••••" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="label">Carga Semanal (h)</label>
+                    <input className="input" type="number" min="1" max="60" value={empForm.weeklyHours} onChange={(e) => setEmpForm({ ...empForm, weeklyHours: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="label">Modo</label>
+                    <select className="input" value={empForm.overtimeMode} onChange={(e) => setEmpForm({ ...empForm, overtimeMode: e.target.value as any })}>
+                      <option value="HOUR_BANK">Banco de Horas</option>
+                      <option value="OVERTIME">Hora Extra</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button onClick={() => setShowEditEmpModal(false)} className="btn-secondary flex-1">Cancelar</button>
+                <button onClick={handleEditEmployee} disabled={savingEmp} className="btn-primary flex-1 flex items-center justify-center gap-2">
+                  {savingEmp ? <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <Check size={16} />}
+                  {savingEmp ? "Salvando..." : "Salvar"}
                 </button>
               </div>
             </div>

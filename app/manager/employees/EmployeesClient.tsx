@@ -95,8 +95,13 @@ export default function EmployeesClient({ employees: initial }: Props) {
       });
       const data = await res.json();
       if (!res.ok) { toast(data.error || "Erro ao salvar", "error"); return; }
-      toast(editingId ? "Funcionário atualizado!" : "Funcionário criado!", "success");
+      toast(editingId ? "Funcionário atualizado!" : "Funcionário criou!", "success");
       setShowModal(false);
+      if (editingId) {
+        setEmployees((prev) => prev.map((e) => (e.id === editingId ? data.user : e)));
+      } else {
+        setEmployees((prev) => [...prev, data.user]);
+      }
       router.refresh();
     } catch { toast("Erro de conexão", "error"); }
     finally { setLoading(false); }
@@ -110,7 +115,9 @@ export default function EmployeesClient({ employees: initial }: Props) {
         body: JSON.stringify({ active: !emp.active }),
       });
       if (!res.ok) { toast("Erro ao alterar status", "error"); return; }
+      const data = await res.json();
       toast(emp.active ? "Funcionário desativado" : "Funcionário reativado", "success");
+      setEmployees((prev) => prev.map((e) => (e.id === emp.id ? data.user : e)));
       router.refresh();
     } catch { toast("Erro de conexão", "error"); }
   }
