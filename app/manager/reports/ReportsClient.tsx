@@ -147,7 +147,7 @@ export default function ReportsClient({ employees }: Props) {
       <div className="card space-y-3">
         <div className="flex items-center justify-between">
           <p className="text-sm font-medium text-ink-2">Funcionários</p>
-          <button onClick={toggleAll} className="text-xs text-cyan-400 hover:text-cyan-300">
+          <button onClick={toggleAll} className="text-xs text-hi hover:text-hi-hover transition-colors">
             {selectedIds.length === employees.length ? "Desmarcar todos" : "Selecionar todos"}
           </button>
         </div>
@@ -160,14 +160,14 @@ export default function ReportsClient({ employees }: Props) {
                 onClick={() => toggleEmployee(emp.id)}
                 className={clsx(
                   "w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left",
-                  selected ? "border-cyan-400/30 bg-cyan-400/5" : "border-base hover:border-base"
+                  selected ? "border-hi-border bg-hi-sub" : "border-line hover:border-line-2"
                 )}
               >
                 <div className={clsx(
                   "w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all",
-                  selected ? "bg-cyan-400 border-cyan-400" : "border-zinc-600"
+                  selected ? "bg-hi border-hi text-hi-fg" : "border-line-2"
                 )}>
-                  {selected && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#18181b" strokeWidth="2" strokeLinecap="round" /></svg>}
+                  {selected && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>}
                 </div>
                 <div>
                   <p className="text-sm font-medium" style={{ color: "var(--text)" }}>{emp.name}</p>
