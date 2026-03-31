@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { startOfDayInZone } from "@/lib/dates";
 
 const schema = z.object({
   action: z.enum(["clock_in", "lunch_out", "lunch_in", "clock_out", "skip_lunch"]),
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest) {
     const { action, entryId } = schema.parse(await req.json());
 
     const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const today = startOfDayInZone(now);
 
     if (action === "clock_in") {
       const existing = await prisma.timeEntry.findUnique({

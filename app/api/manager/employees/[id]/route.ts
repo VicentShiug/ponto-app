@@ -44,7 +44,7 @@ export async function PATCH(
             weeklyHours: before.weeklyHours, overtimeMode: before.overtimeMode, active: before.active,
           },
           after: updateData,
-        },
+        } as object,
       },
     });
 

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Edit2, Check, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { formatMinutes } from "@/lib/hours";
+import { getDay, getDate, getYear, getMonth, startOfDay, parseDateFromAPI } from "@/lib/dates";
 import { toast } from "@/components/Toaster";
 
 interface DayData {
@@ -45,13 +46,13 @@ interface EditForm { clockIn: string; lunchOut: string; lunchIn: string; clockOu
 export default function HistoryClient({ days, weeks, monthLabel, totalWorkedLabel, totalExpectedLabel, balanceLabel, balanceMinutes }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const firstDow = new Date(days[0]?.date).getDay();
+  const firstDow = days[0]?.date ? getDay(startOfDay(parseDateFromAPI(days[0].date))) : 0;
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<EditForm>({ clockIn: "", lunchOut: "", lunchIn: "", clockOut: "" });
   const [saving, setSaving] = useState(false);
 
-  const currentYear = parseInt(searchParams.get("year") || new Date().getFullYear().toString());
-  const currentMonth = parseInt(searchParams.get("month") || (new Date().getMonth() + 1).toString());
+  const currentYear = parseInt(searchParams.get("year") || getYear(new Date()).toString());
+  const currentMonth = parseInt(searchParams.get("month") || (getMonth(new Date()) + 1).toString());
 
   function goToMonth(year: number, month: number) {
     router.push(`/employee/history?year=${year}&month=${month}`);
@@ -159,7 +160,7 @@ export default function HistoryClient({ days, weeks, monthLabel, totalWorkedLabe
         <div className="grid grid-cols-7 gap-1">
           {Array.from({ length: firstDow }).map((_, i) => <div key={`e-${i}`} />)}
           {days.map((d) => {
-            const date = new Date(d.date);
+            const date = startOfDay(parseDateFromAPI(d.date));
             const cfg = STATUS_CONFIG[d.status];
             return (
               <div
@@ -168,7 +169,7 @@ export default function HistoryClient({ days, weeks, monthLabel, totalWorkedLabe
                 style={{ backgroundColor: cfg.bg, color: cfg.text, border: `1px solid ${cfg.border}` }}
                 title={d.status !== "weekend" && d.status !== "future" ? `${cfg.label} — ${formatMinutes(d.workedMinutes)}` : undefined}
               >
-                {date.getDate()}
+                {getDate(date)}
               </div>
             );
           })}
@@ -192,14 +193,14 @@ export default function HistoryClient({ days, weeks, monthLabel, totalWorkedLabe
               return <div className="text-center py-8 text-sm" style={{ color: "var(--text-3)" }}>Nenhum registro neste mês</div>;
             }
             return filteredDays.slice().reverse().map((d) => {
-              const date = new Date(d.date);
+              const date = startOfDay(parseDateFromAPI(d.date));
               const isEditing = editingId === d.id;
               return (
                 <div key={d.date} className="rounded-xl p-3" style={{ backgroundColor: "var(--surface-2)", border: "1px solid var(--border)" }}>
                   <div className="flex items-center gap-3">
                     <div className="w-9 text-center shrink-0">
-                      <p className="text-[9px] uppercase" style={{ color: "var(--text-4)" }}>{WEEKDAYS[date.getDay()]}</p>
-                      <p className="font-syne font-bold text-sm" style={{ color: "var(--text)" }}>{date.getDate().toString().padStart(2,"0")}</p>
+                      <p className="text-[9px] uppercase" style={{ color: "var(--text-4)" }}>{WEEKDAYS[getDay(date)]}</p>
+                      <p className="font-syne font-bold text-sm" style={{ color: "var(--text)" }}>{getDate(date).toString().padStart(2,"0")}</p>
                     </div>
                     {isEditing ? (
                       <div className="flex-1 grid grid-cols-4 gap-1.5">

@@ -4,12 +4,13 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { clsx } from "clsx";
 import {
-  TrendingUp, TrendingDown, Plus, Minus, Edit2, Check, X, ArrowLeft, ChevronLeft, ChevronRight,
+  TrendingUp, TrendingDown, Plus, Minus, Edit2, Check, X, ArrowLeft, ChevronLeft, ChevronRight, Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "@/components/Toaster";
 import { useTheme } from "@/components/ThemeProvider";
 import { formatMinutes } from "@/lib/hours";
+import { getDay, getDate, getMonth, parseDateFromAPI } from "@/lib/dates";
 
 interface Entry {
   id: string; date: string;
@@ -52,6 +53,8 @@ export default function EmployeeDetailClient({
   const [adjType, setAdjType] = useState<"add" | "remove">("add");
   const [loading, setLoading] = useState(false);
   const [editEntry, setEditEntry] = useState<Entry | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   function goToMonth(year: number, month: number) {
     router.push(`/manager/employees/${employee.id}?year=${year}&month=${month}`);
@@ -147,6 +150,19 @@ export default function EmployeeDetailClient({
     finally { setLoading(false); }
   }
 
+  async function handleDeleteAllEntries() {
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/manager/employees/${employee.id}/entries`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) { toast(data.error || "Erro ao excluir", "error"); return; }
+      toast(`${data.deletedCount} registros excluídos!`, "success");
+      setShowDeleteModal(false);
+      router.refresh();
+    } catch { toast("Erro de conexão", "error"); }
+    finally { setDeleting(false); }
+  }
+
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
       <div className="flex items-center gap-3">
@@ -186,6 +202,14 @@ export default function EmployeeDetailClient({
         </button>
       </div>
 
+      {entries.length > 0 && (
+        <div className="flex justify-end">
+          <button onClick={() => setShowDeleteModal(true)} className="flex items-center gap-2 text-sm px-3 py-2 rounded-xl border border-red-500/30 text-red-500 hover:bg-red-500/10 transition-all">
+            <Trash2 size={15} /> Apagar todos os registros
+          </button>
+        </div>
+      )}
+
       {/* Tabs */}
       <div className="flex items-center justify-between">
         <div className="flex gap-1 p-1 bg-surface border border-base rounded-2xl w-fit">
@@ -220,15 +244,15 @@ export default function EmployeeDetailClient({
             </div>
           )}
           {entries.map((entry) => {
-            const d = new Date(entry.date);
+            const d = parseDateFromAPI(entry.date);
             const diff = entry.workedMinutes - entry.expectedMinutes;
             const isEditing = editEntry?.id === entry.id;
             return (
               <div key={entry.id} className="card">
                 <div className="flex items-center gap-3">
                   <div className="text-center w-10 shrink-0">
-                    <p className="text-[10px] text-3 uppercase">{WEEKDAYS[d.getDay()]}</p>
-                    <p className="font-syne font-bold" style={{ color: "var(--text)" }}>{d.getDate().toString().padStart(2, "0")}/{(d.getMonth()+1).toString().padStart(2,"0")}</p>
+                    <p className="text-[10px] text-3 uppercase">{WEEKDAYS[getDay(d)]}</p>
+                    <p className="font-syne font-bold" style={{ color: "var(--text)" }}>{getDate(d).toString().padStart(2, "0")}/{(getMonth(d)+1).toString().padStart(2,"0")}</p>
                   </div>
                   {isEditing ? (
                     <div className="flex-1 grid grid-cols-4 gap-2">
@@ -354,6 +378,29 @@ export default function EmployeeDetailClient({
                 <button onClick={() => setShowAdjModal(false)} className="btn-secondary flex-1">Cancelar</button>
                 <button onClick={handleAdjustment} disabled={loading} className="btn-primary flex-1">
                   {loading ? "Salvando..." : "Confirmar"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteModal && (
+        <div className="fixed z-50" style={{ top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <div className="w-full min-h-screen flex items-center justify-center p-4">
+            <div className="w-full max-w-sm bg-surface border border-base rounded-2xl p-6 animate-fade-in">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="font-syne font-bold text-lg" style={{ color: "var(--text)" }}>Confirmar exclusão</h2>
+                <button onClick={() => setShowDeleteModal(false)} className="text-3 hover:text-ink"><X size={20} /></button>
+              </div>
+              <p className="text-sm mb-4" style={{ color: "var(--text-2)" }}>
+                Tem certeza que deseja apagar <strong>todos os {entries.length} registros</strong> de <strong>{employee.name}</strong>? Esta ação não pode ser desfeita.
+              </p>
+              <div className="flex gap-3 mt-6">
+                <button onClick={() => setShowDeleteModal(false)} className="btn-secondary flex-1">Cancelar</button>
+                <button onClick={handleDeleteAllEntries} disabled={deleting} 
+                  className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-red-500 text-white hover:bg-red-600 transition-all disabled:opacity-50">
+                  {deleting ? "Excluindo..." : "Confirmar exclusão"}
                 </button>
               </div>
             </div>

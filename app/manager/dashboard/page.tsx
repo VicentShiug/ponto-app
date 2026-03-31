@@ -6,6 +6,7 @@ import {
   expectedDailyMinutes,
   formatMinutes,
 } from "@/lib/hours";
+import { getDay, subDays, startOfDay, isSameDay, formatDateISO, parseDateFromAPI } from "@/lib/dates";
 import AppLayout from "@/components/AppLayout";
 import ManagerDashboardClient from "./DashboardClient";
 
@@ -16,16 +17,15 @@ export default async function ManagerDashboard() {
   const manager = await prisma.user.findUnique({ where: { id: session.userId }, select: { id: true, name: true, email: true, role: true, weeklyHours: true, active: true, avatarUrl: true, overtimeMode: true, passwordHash: true, createdAt: true, updatedAt: true } });
   if (!manager) redirect("/login");
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const now = new Date();
+  const today = startOfDay(now);
 
   const employees = await prisma.user.findMany({
     where: { role: "EMPLOYEE", active: true },
     orderBy: { name: "asc" },
   });
 
-  const since90 = new Date(today);
-  since90.setDate(since90.getDate() - 90);
+  const since90 = subDays(today, 90);
 
   const employeeData = await Promise.all(
     employees.map(async (emp) => {
@@ -41,14 +41,14 @@ export default async function ManagerDashboard() {
 
       let balanceMinutes = 0;
       for (const entry of entries) {
-        const dow = entry.date.getDay();
+        const dow = getDay(parseDateFromAPI(entry.date.toISOString()));
         if (dow === 0 || dow === 6) continue;
         balanceMinutes += calcWorkedMinutes(entry) - expectedPerDay;
       }
       for (const adj of adjustments) balanceMinutes += adj.minutes;
 
       const todayEntry = entries.find(
-        (e) => e.date.toISOString().split("T")[0] === today.toISOString().split("T")[0]
+        (e) => isSameDay(parseDateFromAPI(e.date.toISOString()), today)
       );
 
       let todayStatus: "present" | "absent" | "incomplete" = "absent";
@@ -68,7 +68,6 @@ export default async function ManagerDashboard() {
     })
   );
 
-  // Resumo
   const present = employeeData.filter((e) => e.todayStatus === "present").length;
   const incomplete = employeeData.filter((e) => e.todayStatus === "incomplete").length;
   const absent = employeeData.filter((e) => e.todayStatus === "absent").length;
@@ -78,7 +77,7 @@ export default async function ManagerDashboard() {
       <ManagerDashboardClient
         employees={employeeData}
         summary={{ present, incomplete, absent, total: employees.length }}
-        today={today.toISOString()}
+        today={today.toISOString().slice(0, 10)}
       />
     </AppLayout>
   );

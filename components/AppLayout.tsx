@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Clock, LayoutDashboard, Users, FileText, ClipboardList, LogOut, Menu, X, Sun, Moon, User } from "lucide-react";
+import { Clock, LayoutDashboard, Users, FileText, ClipboardList, LogOut, Menu, X, Sun, Moon, User, Wallet, Upload } from "lucide-react";
 import { clsx } from "clsx";
 import { useTheme } from "./ThemeProvider";
 
@@ -14,11 +14,14 @@ const managerNav: NavItem[] = [
   { href: "/manager/employees", label: "Funcionários", icon: <Users size={15} /> },
   { href: "/manager/reports",   label: "Relatórios",   icon: <FileText size={15} /> },
   { href: "/manager/audit",     label: "Auditoria",    icon: <ClipboardList size={15} /> },
+  { href: "/importar",          label: "Importar",     icon: <Upload size={15} /> },
 ];
 
 const employeeNav: NavItem[] = [
   { href: "/employee/dashboard", label: "Dashboard", icon: <LayoutDashboard size={15} /> },
-  { href: "/employee/history",   label: "Histórico",  icon: <ClipboardList size={15} /> },
+  { href: "/employee/bank",      label: "Banco de Horas", icon: <Wallet size={15} /> },
+  { href: "/employee/history",   label: "Histórico",     icon: <ClipboardList size={15} /> },
+  { href: "/importar",          label: "Importar",      icon: <Upload size={15} /> },
 ];
 
 export default function AppLayout({
@@ -37,8 +40,9 @@ export default function AppLayout({
   const initials = userName.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
 
   async function logout() {
+    localStorage.clear();
     await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
+    window.location.href = "/login";
   }
 
   const Sidebar = () => (

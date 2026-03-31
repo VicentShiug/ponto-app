@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import {
   calcWorkedMinutes, expectedDailyMinutes, formatMinutes, formatTime,
 } from "@/lib/hours";
+import { getDay, getYear, getMonth, startOfMonth, endOfMonth, isWithinInterval, isSameDay, parseDateFromAPI } from "@/lib/dates";
 import AppLayout from "@/components/AppLayout";
 import EmployeeDetailClient from "./DetailClient";
 
@@ -19,15 +20,15 @@ export default async function EmployeeDetailPage({
 
   const paramsAwaited = await searchParams;
   const now = new Date();
-  const year = paramsAwaited.year ? parseInt(paramsAwaited.year) : now.getFullYear();
-  const month = paramsAwaited.month ? parseInt(paramsAwaited.month) - 1 : now.getMonth();
+  const year = paramsAwaited.year ? parseInt(paramsAwaited.year) : getYear(now);
+  const month = paramsAwaited.month ? parseInt(paramsAwaited.month) - 1 : getMonth(now);
 
   const manager = await prisma.user.findUnique({ where: { id: session.userId }, select: { id: true, name: true, email: true, role: true, weeklyHours: true, active: true, avatarUrl: true, overtimeMode: true, passwordHash: true, createdAt: true, updatedAt: true } });
   const employee = await prisma.user.findUnique({ where: { id: params.id } });
   if (!manager || !employee || employee.role !== "EMPLOYEE") notFound();
 
-  const monthFirstDay = new Date(year, month, 1);
-  const monthLastDay = new Date(year, month + 1, 0);
+  const monthFirstDay = startOfMonth(new Date(year, month, 1));
+  const monthLastDay = endOfMonth(new Date(year, month, 1));
 
   const monthEntries = await prisma.timeEntry.findMany({
     where: { userId: employee.id, date: { gte: monthFirstDay, lte: monthLastDay } },
@@ -48,7 +49,7 @@ export default async function EmployeeDetailPage({
   const expectedPerDay = expectedDailyMinutes(employee.weeklyHours);
   let balanceMinutes = 0;
   for (const entry of allEntries) {
-    const dow = entry.date.getDay();
+    const dow = getDay(parseDateFromAPI(entry.date.toString()));
     if (dow === 0 || dow === 6) continue;
     balanceMinutes += calcWorkedMinutes(entry) - expectedPerDay;
   }
@@ -56,13 +57,12 @@ export default async function EmployeeDetailPage({
 
   let monthBalanceMinutes = 0;
   for (const entry of monthEntries) {
-    const dow = entry.date.getDay();
+    const dow = getDay(parseDateFromAPI(entry.date.toString()));
     if (dow === 0 || dow === 6) continue;
     monthBalanceMinutes += calcWorkedMinutes(entry) - expectedPerDay;
   }
   const monthAdjustments = adjustments.filter((a) => {
-    const adjDate = new Date(a.createdAt);
-    return adjDate >= monthFirstDay && adjDate <= monthLastDay;
+    return isWithinInterval(a.createdAt, { start: monthFirstDay, end: monthLastDay });
   });
   for (const adj of monthAdjustments) monthBalanceMinutes += adj.minutes;
 
@@ -89,8 +89,7 @@ export default async function EmployeeDetailPage({
     createdAt: a.createdAt.toISOString(),
   }));
 
-  const currentDate = new Date(year, month, 15);
-  const monthLabel = currentDate.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  const monthLabel = new Date(year, month, 15).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 
   return (
     <AppLayout userName={manager.name} userRole="MANAGER" avatarUrl={manager.avatarUrl ?? undefined}>

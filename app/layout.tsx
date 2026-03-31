@@ -25,19 +25,36 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
+  const isLoggedIn = !!session;
   let initialAccent = "default";
+  let initialTheme = "light";
+  let initialLightIntensity = "medium";
+  let initialDarkIntensity = "medium";
+  
   if (session) {
     const user = await prisma.user.findUnique({
       where: { id: session.userId },
-      select: { accentColor: true },
+      select: { accentColor: true, theme: true, lightIntensity: true, darkIntensity: true },
     });
-    initialAccent = user?.accentColor ?? "default";
+    if (user) {
+      initialAccent = user.accentColor ?? "default";
+      initialTheme = user.theme ?? "light";
+      initialLightIntensity = user.lightIntensity ?? "medium";
+      initialDarkIntensity = user.darkIntensity ?? "medium";
+    }
   }
 
   return (
     <html lang="pt-BR" className={`${syne.variable} ${dmSans.variable}`}>
       <body className="font-dm bg-base text-base antialiased">
-        <ThemeProvider initialAccent={initialAccent}>
+        <ThemeProvider 
+          key={session?.userId ?? "guest"}
+          isLoggedIn={isLoggedIn}
+          initialAccent={initialAccent} 
+          initialTheme={initialTheme}
+          initialLightIntensity={initialLightIntensity}
+          initialDarkIntensity={initialDarkIntensity}
+        >
           <Toaster />
           {children}
         </ThemeProvider>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Users, CheckCircle2, AlertCircle, XCircle, TrendingUp, TrendingDown, Search, ChevronRight } from "lucide-react";
 import { formatMinutes } from "@/lib/hours";
+import { startOfDay } from "@/lib/dates";
 
 interface Employee {
   id: string; name: string; email: string; weeklyHours: number;
@@ -28,7 +29,7 @@ export default function ManagerDashboardClient({ employees, summary, today }: Pr
     );
   });
 
-  const d = new Date(today);
+  const d = startOfDay(new Date(today));
   const statusLabels: Record<string, string> = { present: "Presente", incomplete: "Incompleto", absent: "Ausente" };
 
   return (

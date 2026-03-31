@@ -4,7 +4,7 @@ interface LogParams {
   actorId: string;
   action: string;
   targetUserId?: string;
-  details: Record<string, unknown>;
+  details: object;
 }
 
 export async function createAuditLog({ actorId, action, targetUserId, details }: LogParams) {

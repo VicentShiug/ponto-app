@@ -1,9 +1,6 @@
 import { TimeEntry } from "@prisma/client";
+import { getDay, differenceInMinutes } from "date-fns";
 
-/**
- * Calcula minutos trabalhados em um registro de ponto.
- * Todos os cálculos em minutos para evitar erros de ponto flutuante.
- */
 export function calcWorkedMinutes(entry: TimeEntry): number {
   if (!entry.clockIn || !entry.clockOut) return 0;
 
@@ -18,9 +15,6 @@ export function calcWorkedMinutes(entry: TimeEntry): number {
   return Math.max(0, totalMinutes);
 }
 
-/**
- * Converte minutos para string formatada "Xh Ym"
- */
 export function formatMinutes(minutes: number): string {
   const sign = minutes < 0 ? "-" : "";
   const abs = Math.abs(minutes);
@@ -31,85 +25,53 @@ export function formatMinutes(minutes: number): string {
   return `${sign}${h}h ${m}min`;
 }
 
-/**
- * Converte minutos para horas decimais
- */
 export function minutesToHours(minutes: number): number {
   return Math.round((minutes / 60) * 100) / 100;
 }
 
-/**
- * Calcula horas esperadas por dia com base na carga semanal e dias de trabalho
- */
 export function expectedDailyMinutes(weeklyHours: number, workDays: number[] = [1,2,3,4,5]): number {
   const days = workDays.length || 5;
   return Math.floor((weeklyHours * 60) / days);
 }
 
-/**
- * Converte horas decimais para formato "HH:mm" (ex: 8.5 -> "08:30")
- */
 export function formatDecimalHours(decimal: number): string {
   const hours = Math.floor(decimal);
   const minutes = Math.round((decimal - hours) * 60);
   return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
 }
 
-/**
- * Formata hora de um Date para "HH:mm"
- */
 export function formatTime(date: Date | null | undefined): string {
   if (!date) return "--:--";
-  return new Intl.DateTimeFormat("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "America/Sao_Paulo",
-  }).format(date);
+  const hours = date.getHours().toString().padStart(2, "0");
+  const minutes = date.getMinutes().toString().padStart(2, "0");
+  return `${hours}:${minutes}`;
 }
 
-/**
- * Formata data para "dd/MM/yyyy"
- */
 export function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    timeZone: "America/Sao_Paulo",
-  }).format(date);
+  const day = date.getDate().toString().padStart(2, "0");
+  const month = (date.getMonth() + 1).toString().padStart(2, "0");
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
 }
 
-/**
- * Formata data curta para "dd/MM"
- */
 export function formatDateShort(date: Date): string {
-  return new Intl.DateTimeFormat("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    timeZone: "America/Sao_Paulo",
-  }).format(date);
+  const day = date.getDate().toString().padStart(2, "0");
+  const month = (date.getMonth() + 1).toString().padStart(2, "0");
+  return `${day}/${month}`;
 }
 
-/**
- * Nome do dia da semana abreviado
- */
 export function formatWeekday(date: Date): string {
-  return new Intl.DateTimeFormat("pt-BR", {
-    weekday: "short",
-    timeZone: "America/Sao_Paulo",
-  }).format(date);
+  const weekdays = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+  return weekdays[getDay(date)];
 }
 
-/**
- * Retorna o status de um registro de ponto
- */
 export type EntryStatus = "complete" | "incomplete" | "absent" | "weekend";
 
 export function getEntryStatus(
   entry: TimeEntry | null,
   date: Date
 ): EntryStatus {
-  const day = date.getDay();
+  const day = getDay(date);
   if (day === 0 || day === 6) return "weekend";
   if (!entry) return "absent";
   if (entry.clockIn && entry.clockOut) return "complete";

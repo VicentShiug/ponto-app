@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { calcWorkedMinutes, expectedDailyMinutes, formatMinutes, formatTime } from "@/lib/hours";
+import { getDay, getYear, getMonth, addDays, startOfMonth, endOfMonth, startOfDay, endOfDay, isAfter, isSameDay, isWithinInterval, parseDateFromAPI } from "@/lib/dates";
 import AppLayout from "@/components/AppLayout";
 import HistoryClient from "./HistoryClient";
 
@@ -18,11 +19,11 @@ export default async function EmployeeHistory({
 
   const params = await searchParams;
   const now = new Date();
-  const year = params.year ? parseInt(params.year) : now.getFullYear();
-  const month = params.month ? parseInt(params.month) - 1 : now.getMonth();
+  const year = params.year ? parseInt(params.year) : getYear(now);
+  const month = params.month ? parseInt(params.month) - 1 : getMonth(now);
   
-  const firstDay = new Date(year, month, 1);
-  const lastDay = new Date(year, month + 1, 0);
+  const firstDay = startOfMonth(new Date(year, month, 1));
+  const lastDay = endOfMonth(new Date(year, month, 1));
 
   const entries = await prisma.timeEntry.findMany({
     where: { userId: user.id, date: { gte: firstDay, lte: lastDay } },
@@ -33,21 +34,21 @@ export default async function EmployeeHistory({
   const expectedPerDay = expectedDailyMinutes(user.weeklyHours, userWorkDays);
 
   const days = [];
-  for (let d = new Date(firstDay); d <= lastDay; d.setDate(d.getDate() + 1)) {
-    const dayDate = new Date(d);
+  for (let d = new Date(firstDay); d <= lastDay; d = addDays(d, 1)) {
+    const dayDate = startOfDay(d);
     const entry = entries.find(
-      (e) => new Date(e.date).toDateString() === dayDate.toDateString()
+      (e) => isSameDay(parseDateFromAPI(e.date.toISOString()), dayDate)
     );
-    const dow = dayDate.getDay();
+    const dow = getDay(dayDate);
     const isWeekend = !userWorkDays.includes(dow);
     const workedMinutes = entry ? calcWorkedMinutes(entry) : 0;
     const diff = isWeekend ? 0 : workedMinutes - expectedPerDay;
 
     days.push({
       id: entry?.id,
-      date: dayDate.toISOString(),
+      date: dayDate.toISOString().slice(0, 10),
       isWeekend,
-      isFuture: dayDate > now,
+      isFuture: isAfter(dayDate, now),
       clockIn: entry ? formatTime(entry.clockIn) : null,
       lunchOut: entry ? formatTime(entry.lunchOut) : null,
       lunchIn: entry ? formatTime(entry.lunchIn) : null,
@@ -57,7 +58,7 @@ export default async function EmployeeHistory({
       status: isWeekend
         ? "weekend"
         : !entry || (!entry.clockIn && !entry.clockOut)
-        ? dayDate > now
+        ? isAfter(dayDate, now)
           ? "future"
           : "absent"
         : entry.clockIn && entry.clockOut
@@ -66,16 +67,14 @@ export default async function EmployeeHistory({
     });
   }
 
-  // Gráfico por semana
   const weeks: { week: string; worked: number; expected: number }[] = [];
   let weekStart = new Date(firstDay);
   let weekIdx = 1;
   while (weekStart <= lastDay) {
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekEnd.getDate() + 6);
+    const weekEnd = addDays(weekStart, 6);
     const weekDays = days.filter((d) => {
-      const dd = new Date(d.date);
-      return dd >= weekStart && dd <= weekEnd && !d.isWeekend;
+      const dd = parseDateFromAPI(d.date);
+      return isWithinInterval(dd, { start: weekStart, end: weekEnd }) && !d.isWeekend;
     });
     const workedMins = weekDays.reduce((s, d) => s + d.workedMinutes, 0);
     const expectedMins = weekDays.length * expectedPerDay;
@@ -84,7 +83,7 @@ export default async function EmployeeHistory({
       worked: Math.round((workedMins / 60) * 10) / 10,
       expected: Math.round((expectedMins / 60) * 10) / 10,
     });
-    weekStart.setDate(weekStart.getDate() + 7);
+    weekStart = addDays(weekStart, 7);
     weekIdx++;
   }
 
@@ -92,8 +91,7 @@ export default async function EmployeeHistory({
   const workDays = days.filter((d) => !d.isWeekend && !d.isFuture).length;
   const totalExpected = workDays * expectedPerDay;
 
-  const currentDate = new Date(year, month, 15);
-  const monthLabel = currentDate.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  const monthLabel = new Date(year, month, 15).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 
   return (
     <AppLayout userName={user.name} userRole="EMPLOYEE" avatarUrl={user.avatarUrl ?? undefined}>

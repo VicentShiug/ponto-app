@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireManager } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { calcWorkedMinutes, expectedDailyMinutes } from "@/lib/hours";
+import { getDay, startOfDay, endOfDay, format } from "@/lib/dates";
 
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
@@ -22,8 +23,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Parâmetros inválidos" }, { status: 400 });
     }
 
-    const startDate = new Date(start + "T00:00:00");
-    const endDate = new Date(end + "T23:59:59");
+    const parsedStart = startOfDay(new Date(start));
+    const parsedEnd = endOfDay(new Date(end));
 
     const results = await Promise.all(
       ids.map(async (id) => {
@@ -31,7 +32,7 @@ export async function GET(req: NextRequest) {
         if (!user) return null;
 
         const entries = await prisma.timeEntry.findMany({
-          where: { userId: id, date: { gte: startDate, lte: endDate } },
+          where: { userId: id, date: { gte: parsedStart, lte: parsedEnd } },
           orderBy: { date: "asc" },
         });
 
@@ -42,12 +43,12 @@ export async function GET(req: NextRequest) {
         
         let balanceMinutes = 0;
         const serialized = entries.map((e) => {
-          const dow = e.date.getDay();
+          const dow = getDay(e.date);
           const worked = calcWorkedMinutes(e);
           const diff = !userWorkDays.includes(dow) ? 0 : worked - expectedPerDay;
           balanceMinutes += diff;
           return {
-            date: e.date.toLocaleDateString("pt-BR"),
+            date: format(e.date, "dd/MM/yyyy"),
             weekday: WEEKDAYS[dow],
             clockIn: fmt(e.clockIn),
             lunchOut: fmt(e.lunchOut),

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Clock } from "lucide-react";
+import { getYear } from "@/lib/dates";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -22,7 +23,7 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Erro ao fazer login"); return; }
-      router.push(data.redirect);
+      window.location.href = data.redirect;
     } catch { setError("Erro de conexão."); }
     finally { setLoading(false); }
   }
@@ -73,7 +74,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-center text-xs mt-6" style={{ color: "var(--text-4)" }}>
-          © {new Date().getFullYear()} PontoApp
+          © {getYear(new Date())} PontoApp
         </p>
       </div>
     </div>

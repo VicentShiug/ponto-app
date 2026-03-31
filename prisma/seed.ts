@@ -1,6 +1,6 @@
 import { PrismaClient, Role, OvertimeMode } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import { subDays, setHours, setMinutes, startOfDay } from "date-fns";
+import { subDays, setHours, setMinutes, getDay, startOfDay } from "date-fns";
 
 const prisma = new PrismaClient();
 
@@ -9,7 +9,7 @@ function randomMinutes(base: number, spread: number) {
 }
 
 function makeTime(base: Date, hours: number, minutes: number) {
-  return setMinutes(setHours(new Date(base), hours), minutes);
+  return setMinutes(setHours(base, hours), minutes);
 }
 
 async function main() {
@@ -72,7 +72,7 @@ async function main() {
   for (const emp of employees) {
     for (let i = 30; i >= 1; i--) {
       const day = subDays(new Date(), i);
-      const dayOfWeek = day.getDay();
+      const dayOfWeek = getDay(day);
       if (dayOfWeek === 0 || dayOfWeek === 6) continue;
 
       const skip = Math.random() < 0.05;

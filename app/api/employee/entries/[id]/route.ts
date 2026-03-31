@@ -23,7 +23,6 @@ export async function PATCH(
       return NextResponse.json({ error: "Registro não encontrado" }, { status: 404 });
     }
 
-    // Funcionário só pode editar seus próprios registros
     if (entry.userId !== session.userId) {
       return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
     }
