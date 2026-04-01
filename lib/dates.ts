@@ -84,6 +84,7 @@ export function getDaySP(date: Date): number {
 }
 
 export {
+  getDay,
   getDate,
   getMonth,
   getYear,
