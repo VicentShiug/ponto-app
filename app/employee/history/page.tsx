@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { calcWorkedMinutes, expectedDailyMinutes, formatMinutes, formatTime } from "@/lib/hours";
-import { getDay, getYear, getMonth, addDays, startOfMonth, endOfMonth, startOfDay, endOfDay, isAfter, isSameDay, isWithinInterval, parseDateFromAPI } from "@/lib/dates";
+import { getDaySP, getYear, getMonth, addDays, startOfMonth, endOfMonth, startOfDay, endOfDay, isAfter, isSameDay, isWithinInterval, formatDateISO, parseDateFromAPI, parseZonedStart, parseZonedEnd } from "@/lib/dates";
 import AppLayout from "@/components/AppLayout";
 import HistoryClient from "./HistoryClient";
 
@@ -20,10 +20,12 @@ export default async function EmployeeHistory({
   const params = await searchParams;
   const now = new Date();
   const year = params.year ? parseInt(params.year) : getYear(now);
-  const month = params.month ? parseInt(params.month) - 1 : getMonth(now);
+  const month = params.month ? parseInt(params.month) : getMonth(now) + 1;
   
-  const firstDay = startOfMonth(new Date(year, month, 1));
-  const lastDay = endOfMonth(new Date(year, month, 1));
+  const monthStr = month.toString().padStart(2, "0");
+  const firstDay = parseZonedStart(`${year}-${monthStr}-01`);
+  // End of month is tricky with zoned. Just take end of month of the first day.
+  const lastDay = endOfMonth(firstDay);
 
   const entries = await prisma.timeEntry.findMany({
     where: { userId: user.id, date: { gte: firstDay, lte: lastDay } },
@@ -35,20 +37,20 @@ export default async function EmployeeHistory({
 
   const days = [];
   for (let d = new Date(firstDay); d <= lastDay; d = addDays(d, 1)) {
-    const dayDate = startOfDay(d);
+    const dayISO = formatDateISO(d);
     const entry = entries.find(
-      (e) => isSameDay(parseDateFromAPI(e.date.toISOString()), dayDate)
+      (e) => formatDateISO(e.date) === dayISO
     );
-    const dow = getDay(dayDate);
+    const dow = getDaySP(d);
     const isWeekend = !userWorkDays.includes(dow);
     const workedMinutes = entry ? calcWorkedMinutes(entry) : 0;
     const diff = isWeekend ? 0 : workedMinutes - expectedPerDay;
 
     days.push({
       id: entry?.id,
-      date: dayDate.toISOString().slice(0, 10),
+      date: dayISO,
       isWeekend,
-      isFuture: isAfter(dayDate, now),
+      isFuture: isAfter(startOfDay(d), now),
       clockIn: entry ? formatTime(entry.clockIn) : null,
       lunchOut: entry ? formatTime(entry.lunchOut) : null,
       lunchIn: entry ? formatTime(entry.lunchIn) : null,
@@ -58,7 +60,7 @@ export default async function EmployeeHistory({
       status: isWeekend
         ? "weekend"
         : !entry || (!entry.clockIn && !entry.clockOut)
-        ? isAfter(dayDate, now)
+          ? isAfter(startOfDay(d), now)
           ? "future"
           : "absent"
         : entry.clockIn && entry.clockOut
@@ -91,7 +93,7 @@ export default async function EmployeeHistory({
   const workDays = days.filter((d) => !d.isWeekend && !d.isFuture).length;
   const totalExpected = workDays * expectedPerDay;
 
-  const monthLabel = new Date(year, month, 15).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  const monthLabel = new Date(year, month - 1, 15).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 
   return (
     <AppLayout userName={user.name} userRole="EMPLOYEE" avatarUrl={user.avatarUrl ?? undefined}>

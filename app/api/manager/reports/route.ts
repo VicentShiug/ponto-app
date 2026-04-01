@@ -2,14 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireManager } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { calcWorkedMinutes, expectedDailyMinutes, calculateHourBankBalance } from "@/lib/hours";
-import { getDay, startOfDay, endOfDay, format } from "@/lib/dates";
+import { getDaySP, parseZonedStart, parseZonedEnd, formatDate, formatTime } from "@/lib/dates";
 
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
-
-function fmt(d: Date | null | undefined) {
-  if (!d) return "--:--";
-  return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
-}
 
 export async function GET(req: NextRequest) {
   try {
@@ -23,8 +18,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Parâmetros inválidos" }, { status: 400 });
     }
 
-    const parsedStart = startOfDay(new Date(start));
-    const parsedEnd = endOfDay(new Date(end));
+    const parsedStart = parseZonedStart(start!);
+    const parsedEnd = parseZonedEnd(end!);
+
 
     const results = await Promise.all(
       ids.map(async (id) => {
@@ -41,20 +37,21 @@ export async function GET(req: NextRequest) {
 
         const balanceMinutes = await calculateHourBankBalance(id);
         const serialized = entries.map((e) => {
-          const dow = getDay(e.date);
+          const dow = getDaySP(e.date);
           const worked = calcWorkedMinutes(e);
           const has4 = e.clockIn && e.lunchOut && e.lunchIn && e.clockOut;
           const diff = (!userWorkDays.includes(dow) || !has4) ? 0 : worked - expectedPerDay;
           return {
-            date: format(e.date, "dd/MM/yyyy"),
+            date: formatDate(e.date),
             weekday: WEEKDAYS[dow],
-            clockIn: fmt(e.clockIn),
-            lunchOut: fmt(e.lunchOut),
-            lunchIn: fmt(e.lunchIn),
-            clockOut: fmt(e.clockOut),
+            clockIn: formatTime(e.clockIn),
+            lunchOut: formatTime(e.lunchOut),
+            lunchIn: formatTime(e.lunchIn),
+            clockOut: formatTime(e.clockOut),
             workedMinutes: worked,
             diff,
           };
+
         });
 
         return {

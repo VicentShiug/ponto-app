@@ -15,6 +15,12 @@ export default function ReportsClient({ employees }: Props) {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [loading, setLoading] = useState<"pdf" | "xlsx" | null>(null);
+  
+  const formatDisplayDate = (dateStr: string) => {
+    if (!dateStr) return "";
+    const [y, m, d] = dateStr.split("-");
+    return `${d}/${m}/${y}`;
+  };
 
   function toggleEmployee(id: string) {
     setSelectedIds((prev) =>
@@ -58,7 +64,8 @@ export default function ReportsClient({ employees }: Props) {
 
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
-        doc.text(`Período: ${startDate} a ${endDate}`, 14, 28);
+        const period = `${formatDisplayDate(startDate)} a ${formatDisplayDate(endDate)}`;
+        doc.text(`Período: ${period}`, 14, 28);
         doc.text(`Carga: ${report.weeklyHours}h/sem  |  Saldo: ${formatMinutes(report.balanceMinutes)}`, 14, 34);
 
         autoTable(doc, {
@@ -96,7 +103,7 @@ export default function ReportsClient({ employees }: Props) {
       for (const report of data) {
         const rows = [
           [report.employeeName],
-          [`Período: ${startDate} a ${endDate}`],
+          [`Período: ${formatDisplayDate(startDate)} a ${formatDisplayDate(endDate)}`],
           [`Carga: ${report.weeklyHours}h/sem`, "", "", "", "", "", "", `Saldo: ${formatMinutes(report.balanceMinutes)}`],
           [],
           ["Data", "Dia", "Entrada", "Saída Almoço", "Volta Almoço", "Saída", "Total (min)", "Diferença (min)"],

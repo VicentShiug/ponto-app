@@ -22,9 +22,12 @@ import {
   differenceInMinutes,
   isValid
 } from "date-fns";
-import { toZonedTime, fromZonedTime } from "date-fns-tz";
 
 export const TIMEZONE = "America/Sao_Paulo";
+const SP_OFFSET = 3 * 60 * 60 * 1000;
+
+export const toSP = (date: Date) => new Date(date.getTime() - SP_OFFSET);
+
 
 export function parseDate(dateStr: string): Date {
   const parsed = parse(dateStr, "dd/MM/yyyy", new Date());
@@ -39,9 +42,16 @@ export function parseDateFromAPI(isoString: string): Date {
   return parse(dateOnly, "yyyy-MM-dd", new Date());
 }
 
-export function startOfDayInZone(date: Date, timeZone: string = TIMEZONE): Date {
-  const zonedDate = toZonedTime(date, timeZone);
-  return fromZonedTime(startOfDay(zonedDate), timeZone);
+export function parseZonedStart(dateStr: string): Date {
+  return new Date(`${dateStr}T00:00:00-03:00`);
+}
+
+export function parseZonedEnd(dateStr: string): Date {
+  return new Date(`${dateStr}T23:59:59-03:00`);
+}
+
+export function startOfDayInZone(date: Date): Date {
+  return new Date(`${formatDateISO(date)}T00:00:00-03:00`);
 }
 
 export function parseTime(timeStr: string, baseDate: Date): Date {
@@ -51,20 +61,29 @@ export function parseTime(timeStr: string, baseDate: Date): Date {
 }
 
 export function formatDate(date: Date): string {
-  return format(date, "dd/MM/yyyy");
+  const day = date.getUTCDate().toString().padStart(2, "0");
+  const month = (date.getUTCMonth() + 1).toString().padStart(2, "0");
+  const year = date.getUTCFullYear();
+  return `${day}/${month}/${year}`;
 }
 
 export function formatDateISO(date: Date): string {
-  return format(date, "yyyy-MM-dd");
+  return date.toISOString().split("T")[0];
 }
 
 export function formatTime(date: Date | null | undefined): string {
   if (!date) return "--:--";
-  return format(date, "HH:mm");
+  const d = toSP(date);
+  const h = d.getUTCHours().toString().padStart(2, "0");
+  const m = d.getUTCMinutes().toString().padStart(2, "0");
+  return `${h}:${m}`;
+}
+
+export function getDaySP(date: Date): number {
+  return date.getUTCDay();
 }
 
 export {
-  getDay,
   getDate,
   getMonth,
   getYear,
@@ -83,7 +102,5 @@ export {
   isAfter,
   isBefore,
   differenceInMinutes,
-  toZonedTime,
-  fromZonedTime,
   format
 };
