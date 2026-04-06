@@ -29,7 +29,7 @@ model User {
   active        Boolean      @default(true)
   avatarUrl     String?      @map("avatar_url")
   accentColor   String?      @default("default") @map("accent_color")
-  theme         String?      @default("dark") @map("theme")
+  theme         String?      @default("light") @map("theme")
   lightIntensity String?    @default("medium") @map("light_intensity")
   darkIntensity  String?    @default("medium") @map("dark_intensity")
   createdAt     DateTime     @default(now()) @map("created_at")

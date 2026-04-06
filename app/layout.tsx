@@ -45,7 +45,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   }
 
   return (
-    <html lang="pt-BR" className={`${syne.variable} ${dmSans.variable}`}>
+    <html 
+      lang="pt-BR" 
+      className={`${syne.variable} ${dmSans.variable}`}
+      data-theme={initialTheme}
+      data-intensity={initialTheme === "light" ? initialLightIntensity : initialDarkIntensity}
+      data-accent={initialAccent === "default" ? undefined : initialAccent}
+    >
       <body className="font-dm bg-base text-base antialiased">
         <ThemeProvider 
           key={session?.userId ?? "guest"}
