@@ -4,6 +4,7 @@ import { useState } from "react";
 import { clsx } from "clsx";
 import { Plus, Minus, TrendingUp, Calendar, Clock, ChevronDown, ChevronUp } from "lucide-react";
 import { formatMinutes } from "@/lib/hours";
+import { EmptyState } from "@/components/EmptyState";
 import { useTheme } from "@/components/ThemeProvider";
 import type { HourBankDetails } from "@/lib/hour-bank";
 
@@ -118,9 +119,7 @@ export default function BankClient({ details, overtimeMode, adjustments }: Props
         <h2 className={clsx("font-syne text-lg font-bold mt-8 mb-4", textTitleBright)}>Histórico Mensal</h2>
         
         {details.monthlyData.length === 0 ? (
-          <div className={clsx("text-center py-8 text-sm border rounded-xl shadow-sm", bgCard, borderCard, textSub)}>
-            Nenhum histórico encontrado
-          </div>
+          <EmptyState message="Nenhum histórico encontrado" />
         ) : (
           details.monthlyData.map((month) => {
             const isExpanded = !!expandedMonths[month.monthKey];
@@ -180,9 +179,7 @@ export default function BankClient({ details, overtimeMode, adjustments }: Props
       <h2 className={clsx("font-syne text-lg font-bold mt-10 mb-4", textTitleBright)}>Histórico de Ajustes</h2>
       <div className={clsx("border shadow-sm rounded-xl p-5", bgCard, borderCard)}>
         {adjustments.length === 0 ? (
-          <div className={clsx("text-center py-6 text-sm", textSub)}>
-            Nenhum ajuste registrado
-          </div>
+          <EmptyState message="Nenhum ajuste registrado" />
         ) : (
           <div className="space-y-6">
             {sortedAdjMonths.map((monthKey) => {

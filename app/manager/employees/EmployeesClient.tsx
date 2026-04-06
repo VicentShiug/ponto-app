@@ -9,6 +9,7 @@ import {
   Edit2, X, Check,
 } from "lucide-react";
 import { toast } from "@/components/Toaster";
+import { EmptyState } from "@/components/EmptyState";
 
 interface Employee {
   id: string;
@@ -145,6 +146,12 @@ export default function EmployeesClient({ employees: initial }: Props) {
       </div>
 
       <div className="space-y-2">
+        {filtered.length === 0 && (
+          <EmptyState 
+            message="Nenhum funcionário cadastrado." 
+            submessage="Adicione um funcionário para começar." 
+          />
+        )}
         {filtered.map((emp) => (
           <div key={emp.id} className={clsx("card flex items-center gap-4", !emp.active && "opacity-50")}>
             <div className="w-10 h-10 bg-surface-3 rounded-full flex items-center justify-center shrink-0">

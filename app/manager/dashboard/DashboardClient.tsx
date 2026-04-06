@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Users, CheckCircle2, AlertCircle, XCircle, TrendingUp, TrendingDown, Search, ChevronRight } from "lucide-react";
 import { formatMinutes } from "@/lib/hours";
 import { startOfDay } from "@/lib/dates";
+import { EmptyState } from "@/components/EmptyState";
 
 interface Employee {
   id: string; name: string; email: string; weeklyHours: number;
@@ -87,7 +88,7 @@ export default function ManagerDashboardClient({ employees, summary, today }: Pr
 
       {/* List */}
       <div className="space-y-2">
-        {filtered.length === 0 && <div className="card text-center py-10" style={{ color: "var(--text-3)" }}>Nenhum funcionário encontrado.</div>}
+        {filtered.length === 0 && <EmptyState message="Nenhum funcionário encontrado." />}
         {filtered.map((emp) => (
           <Link
             key={emp.id}

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { clsx } from "clsx";
 import { FileText, Download, Loader2 } from "lucide-react";
 import { toast } from "@/components/Toaster";
+import { EmptyState } from "@/components/EmptyState";
 import { formatMinutes } from "@/lib/hours";
 
 interface Employee { id: string; name: string; weeklyHours: number; overtimeMode: string }
@@ -158,32 +159,36 @@ export default function ReportsClient({ employees }: Props) {
             {selectedIds.length === employees.length ? "Desmarcar todos" : "Selecionar todos"}
           </button>
         </div>
-        <div className="space-y-2">
-          {employees.map((emp) => {
-            const selected = selectedIds.includes(emp.id);
-            return (
-              <button
-                key={emp.id}
-                onClick={() => toggleEmployee(emp.id)}
-                className={clsx(
-                  "w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left",
-                  selected ? "border-hi-border bg-hi-sub" : "border-line hover:border-line-2"
-                )}
-              >
-                <div className={clsx(
-                  "w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all",
-                  selected ? "bg-hi border-hi text-hi-fg" : "border-line-2"
-                )}>
-                  {selected && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>}
-                </div>
-                <div>
-                  <p className="text-sm font-medium" style={{ color: "var(--text)" }}>{emp.name}</p>
-                  <p className="text-xs text-3">{emp.weeklyHours}h/sem · {emp.overtimeMode === "HOUR_BANK" ? "Banco de Horas" : "Hora Extra"}</p>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+        {employees.length === 0 ? (
+          <EmptyState message="Nenhum dado encontrado para o período selecionado." />
+        ) : (
+          <div className="space-y-2">
+            {employees.map((emp) => {
+              const selected = selectedIds.includes(emp.id);
+              return (
+                <button
+                  key={emp.id}
+                  onClick={() => toggleEmployee(emp.id)}
+                  className={clsx(
+                    "w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left",
+                    selected ? "border-hi-border bg-hi-sub" : "border-line hover:border-line-2"
+                  )}
+                >
+                  <div className={clsx(
+                    "w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all",
+                    selected ? "bg-hi border-hi text-hi-fg" : "border-line-2"
+                  )}>
+                    {selected && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: "var(--text)" }}>{emp.name}</p>
+                    <p className="text-xs text-3">{emp.weeklyHours}h/sem · {emp.overtimeMode === "HOUR_BANK" ? "Banco de Horas" : "Hora Extra"}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Export buttons */}

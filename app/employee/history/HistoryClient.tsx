@@ -7,6 +7,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLin
 import { formatMinutes } from "@/lib/hours";
 import { getDaySP, getDate, getYear, getMonth, startOfDay, parseDateFromAPI, toSP } from "@/lib/dates";
 import { toast } from "@/components/Toaster";
+import { EmptyState } from "@/components/EmptyState";
 
 interface DayData {
   id?: string; date: string; isWeekend: boolean; isFuture: boolean;
@@ -190,7 +191,12 @@ export default function HistoryClient({ days, weeks, monthLabel, totalWorkedLabe
           {(() => {
             const filteredDays = days.filter((d) => !d.isWeekend && !d.isFuture);
             if (filteredDays.length === 0) {
-              return <div className="text-center py-8 text-sm" style={{ color: "var(--text-3)" }}>Nenhum registro neste mês</div>;
+              return (
+                <EmptyState 
+                  message="Nenhum registro encontrado." 
+                  submessage="Seus registros de ponto aparecerão aqui." 
+                />
+              );
             }
             return filteredDays.slice().reverse().map((d) => {
               const date = parseDateFromAPI(d.date);
