@@ -5,6 +5,7 @@ import { z } from "zod";
 
 const patchSchema = z.object({
   name:         z.string().min(2).optional(),
+  email:        z.string().email().optional(),
   weeklyHours:  z.number().min(1).max(60).optional(),
   workDays:     z.array(z.number().min(0).max(6)).optional(),
   currentPassword: z.string().optional(),
@@ -40,6 +41,17 @@ export async function PATCH(req: NextRequest) {
     const updateData: Record<string, unknown> = {};
 
     if (body.name)        updateData.name       = body.name;
+    if (body.email) {
+      if (body.email !== current.email) {
+        const existing = await prisma.user.findFirst({
+          where: { email: body.email, NOT: { id: session.userId } }
+        });
+        if (existing) {
+          return NextResponse.json({ error: "Este email já está em uso" }, { status: 400 });
+        }
+        updateData.email = body.email;
+      }
+    }
     if (body.accentColor) updateData.accentColor = body.accentColor;
     if (body.avatarUrl !== undefined) updateData.avatarUrl = body.avatarUrl;
     if (body.theme) updateData.theme = body.theme;
@@ -68,8 +80,8 @@ export async function PATCH(req: NextRequest) {
 
     const user = await prisma.user.update({ where: { id: session.userId }, data: updateData });
 
-    // Re-issue token if name changed
-    if (body.name) {
+    // Re-issue token if name or email changed
+    if (body.name || (body.email && body.email !== current.email)) {
       const token = await signToken({
         userId: user.id,
         email: user.email,

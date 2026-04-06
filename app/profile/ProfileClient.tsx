@@ -51,6 +51,7 @@ export default function ProfileClient({ user: initial }: { user: User }) {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [name, setName]               = useState(initial.name);
+  const [email, setEmail]             = useState(initial.email);
   const [weeklyHours, setWeeklyHours] = useState(String(initial.weeklyHours));
   const [workDays, setWorkDays]       = useState<number[]>(initial.workDays || [1,2,3,4,5]);
   const [avatarUrl, setAvatarUrl]     = useState<string | null>(initial.avatarUrl);
@@ -59,6 +60,7 @@ export default function ProfileClient({ user: initial }: { user: User }) {
   const [showPw, setShowPw]           = useState(false);
   const [saving, setSaving]           = useState(false);
   const [savingPw, setSavingPw]       = useState(false);
+  const [emailError, setEmailError]   = useState("");
 
   const selectedDaysCount = workDays.length;
   const dailyHours = selectedDaysCount > 0 ? Number(weeklyHours) / selectedDaysCount : 0;
@@ -67,6 +69,11 @@ export default function ProfileClient({ user: initial }: { user: User }) {
     : null;
 
   async function handleSaveProfile() {
+    setEmailError("");
+    if (!name.trim()) { toast("O nome não pode ser vazio", "error"); return; }
+    if (!email.trim()) { setEmailError("O email não pode ser vazio"); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setEmailError("Formato de email inválido"); return; }
+    
     if (selectedDaysCount === 0) {
       toast("Selecione pelo menos um dia de trabalho", "error");
       return;
@@ -78,14 +85,22 @@ export default function ProfileClient({ user: initial }: { user: User }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name,
+          email,
           weeklyHours: Number(weeklyHours),
           workDays,
           avatarUrl,
         }),
       });
       const data = await res.json();
-      if (!res.ok) { toast(data.error || "Erro ao salvar", "error"); return; }
-      toast("Perfil atualizado!", "success");
+      if (!res.ok) { 
+        if (data.error === "Este email já está em uso") {
+          setEmailError(data.error);
+        } else {
+          toast(data.error || "Erro ao salvar", "error"); 
+        }
+        return; 
+      }
+      toast("Informações atualizadas", "success");
       router.refresh();
     } catch { toast("Erro de conexão", "error"); }
     finally { setSaving(false); }
@@ -151,7 +166,7 @@ export default function ProfileClient({ user: initial }: { user: User }) {
     <div className="max-w-xl mx-auto space-y-5">
       <div>
         <h1 className="font-syne text-2xl font-bold text-ink">Perfil</h1>
-        <p className="text-3 text-sm mt-0.5">{initial.email}</p>
+        <p className="text-3 text-sm mt-0.5">{email}</p>
       </div>
 
       {/* Avatar */}
@@ -193,6 +208,11 @@ export default function ProfileClient({ user: initial }: { user: User }) {
         <div>
           <label className="label">Nome</label>
           <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
+        </div>
+        <div>
+          <label className="label">E-mail</label>
+          <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          {emailError && <p className="text-[10px] text-red-500 mt-1">{emailError}</p>}
         </div>
         {initial.role === "EMPLOYEE" && (
           <>
