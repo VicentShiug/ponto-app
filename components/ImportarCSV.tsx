@@ -48,7 +48,7 @@ interface Employee {
 }
 
 interface Props {
-  userRole: "MANAGER" | "EMPLOYEE";
+  userRole: "MANAGER" | "EMPLOYEE" | "SUPER_ADMIN";
   userId: string;
   employees: Employee[];
 }
