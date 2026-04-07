@@ -13,11 +13,11 @@ export async function DELETE(
 
     const employee = await prisma.user.findUnique({
       where: { id: employeeId },
-      select: { id: true, name: true, role: true },
+      select: { id: true, name: true, role: true, managerId: true },
     });
 
-    if (!employee || employee.role !== "EMPLOYEE") {
-      return NextResponse.json({ error: "Funcionário não encontrado" }, { status: 404 });
+    if (!employee || employee.role !== "EMPLOYEE" || employee.managerId !== session.userId) {
+      return NextResponse.json({ error: "Funcionário não encontrado ou sem permissão" }, { status: 404 });
     }
 
     const entries = await prisma.timeEntry.findMany({

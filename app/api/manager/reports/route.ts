@@ -8,7 +8,7 @@ const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 export async function GET(req: NextRequest) {
   try {
-    await requireManager();
+    const session = await requireManager();
     const { searchParams } = req.nextUrl;
     const ids = searchParams.get("ids")?.split(",") ?? [];
     const start = searchParams.get("start");
@@ -24,8 +24,8 @@ export async function GET(req: NextRequest) {
 
     const results = await Promise.all(
       ids.map(async (id) => {
-        const user = await prisma.user.findUnique({ where: { id }, select: { id: true, name: true, weeklyHours: true, workDays: true, overtimeMode: true } });
-        if (!user) return null;
+        const user = await prisma.user.findUnique({ where: { id }, select: { id: true, name: true, weeklyHours: true, workDays: true, overtimeMode: true, role: true, managerId: true } });
+        if (!user || user.role !== "EMPLOYEE" || user.managerId !== session.userId) return null;
 
         const entries = await prisma.timeEntry.findMany({
           where: { userId: id, date: { gte: parsedStart, lte: parsedEnd } },

@@ -15,7 +15,7 @@ export default async function ProfilePage() {
   if (!user) redirect("/login");
 
   return (
-    <AppLayout userName={user.name} userRole={user.role === "MANAGER" ? "MANAGER" : "EMPLOYEE"} avatarUrl={user.avatarUrl ?? undefined}>
+    <AppLayout userName={user.name} userRole={user.role} avatarUrl={user.avatarUrl ?? undefined}>
       <ProfileClient user={{ ...user, avatarUrl: user.avatarUrl ?? null, accentColor: user.accentColor ?? "default", workDays: user.workDays ?? [1,2,3,4,5] }} />
     </AppLayout>
   );

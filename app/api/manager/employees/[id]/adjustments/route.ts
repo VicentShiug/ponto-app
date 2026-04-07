@@ -17,7 +17,7 @@ export async function POST(
     const { minutes, reason } = schema.parse(await req.json());
 
     const employee = await prisma.user.findUnique({ where: { id: params.id } });
-    if (!employee) return NextResponse.json({ error: "Funcionário não encontrado" }, { status: 404 });
+    if (!employee || employee.role !== "EMPLOYEE" || employee.managerId !== session.userId) return NextResponse.json({ error: "Funcionário não encontrado ou sem permissão" }, { status: 404 });
 
     const adjustment = await prisma.hourBankAdjustment.create({
       data: { userId: params.id, managerId: session.userId, minutes, reason },

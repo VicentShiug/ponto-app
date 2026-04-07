@@ -25,7 +25,7 @@ export default async function EmployeeDetailPage({
 
   const manager = await prisma.user.findUnique({ where: { id: session.userId }, select: { id: true, name: true, email: true, role: true, weeklyHours: true, active: true, avatarUrl: true, overtimeMode: true, passwordHash: true, createdAt: true, updatedAt: true } });
   const employee = await prisma.user.findUnique({ where: { id: params.id } });
-  if (!manager || !employee || employee.role !== "EMPLOYEE") notFound();
+  if (!manager || !employee || employee.role !== "EMPLOYEE" || employee.managerId !== session.userId) notFound();
 
   const monthFirstDay = startOfMonth(new Date(year, month, 1));
   const monthLastDay = endOfMonth(new Date(year, month, 1));

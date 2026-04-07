@@ -14,7 +14,7 @@ export interface SessionPayload {
   userId: string;
   email: string;
   name: string;
-  role: "MANAGER" | "EMPLOYEE";
+  role: "MANAGER" | "EMPLOYEE" | "SUPER_ADMIN";
 }
 
 export async function signToken(payload: SessionPayload): Promise<string> {
@@ -74,5 +74,11 @@ export async function requireSession(): Promise<SessionPayload> {
 export async function requireManager(): Promise<SessionPayload> {
   const session = await requireSession();
   if (session.role !== "MANAGER") throw new Error("Acesso negado");
+  return session;
+}
+
+export async function requireSuperAdmin(): Promise<SessionPayload> {
+  const session = await requireSession();
+  if (session.role !== "SUPER_ADMIN") throw new Error("Acesso negado");
   return session;
 }

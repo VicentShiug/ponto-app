@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
         weeklyHours: body.weeklyHours,
         overtimeMode: body.overtimeMode,
         role: "EMPLOYEE",
+        managerId: session.userId,
       },
     });
 

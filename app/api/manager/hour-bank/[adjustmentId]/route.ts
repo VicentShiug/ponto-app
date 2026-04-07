@@ -20,9 +20,10 @@ export async function PATCH(
 
     const adjustment = await prisma.hourBankAdjustment.findUnique({
       where: { id: params.adjustmentId },
+      include: { user: { select: { role: true, managerId: true } } },
     });
 
-    if (!adjustment) {
+    if (!adjustment || adjustment.user.role !== "EMPLOYEE" || adjustment.user.managerId !== session.userId) {
       return NextResponse.json({ error: "Ajuste não encontrado" }, { status: 404 });
     }
 
@@ -63,9 +64,10 @@ export async function DELETE(
 
     const adjustment = await prisma.hourBankAdjustment.findUnique({
       where: { id: params.adjustmentId },
+      include: { user: { select: { role: true, managerId: true } } },
     });
 
-    if (!adjustment) {
+    if (!adjustment || adjustment.user.role !== "EMPLOYEE" || adjustment.user.managerId !== session.userId) {
       return NextResponse.json({ error: "Ajuste não encontrado" }, { status: 404 });
     }
 

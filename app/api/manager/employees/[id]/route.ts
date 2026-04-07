@@ -21,7 +21,7 @@ export async function PATCH(
     const body = patchSchema.parse(await req.json());
 
     const before = await prisma.user.findUnique({ where: { id: params.id } });
-    if (!before) return NextResponse.json({ error: "Funcionário não encontrado" }, { status: 404 });
+    if (!before || before.role !== "EMPLOYEE" || before.managerId !== session.userId) return NextResponse.json({ error: "Funcionário não encontrado ou sem permissão" }, { status: 404 });
 
     const updateData: Record<string, unknown> = {};
     if (body.name) updateData.name = body.name;

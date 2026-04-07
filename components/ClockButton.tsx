@@ -8,7 +8,7 @@ import { toast } from "./Toaster";
 interface ClockButtonProps {
   currentStep: 0 | 1 | 2 | 3 | 4;
   entryId: string | null;
-  onSuccess: () => void;
+  onSuccess: (newEntryId?: string) => void;
 }
 
 const STEPS = [
@@ -46,7 +46,7 @@ export default function ClockButton({ currentStep, entryId, onSuccess }: ClockBu
       const data = await res.json();
       if (!res.ok) { toast(data.error || "Erro ao registrar ponto", "error"); return; }
       toast(`${step.label} — ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`, "success");
-      onSuccess();
+      onSuccess(data.entry?.id);
     } catch { toast("Erro de conexão", "error"); }
     finally { setLoading(false); }
   }
@@ -62,7 +62,7 @@ export default function ClockButton({ currentStep, entryId, onSuccess }: ClockBu
       const data = await res.json();
       if (!res.ok) { toast(data.error || "Erro", "error"); return; }
       toast("Intervalo pulado.", "success");
-      onSuccess();
+      onSuccess(data.entry?.id);
     } catch { toast("Erro de conexão", "error"); }
     finally { setLoading(false); }
   }

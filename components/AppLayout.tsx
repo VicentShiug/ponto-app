@@ -17,6 +17,10 @@ const managerNav: NavItem[] = [
   { href: "/importar",          label: "Importar",     icon: <Upload size={15} /> },
 ];
 
+const adminNav: NavItem[] = [
+  { href: "/admin/managers", label: "Gestores", icon: <Users size={15} /> },
+];
+
 const employeeNav: NavItem[] = [
   { href: "/employee/dashboard", label: "Dashboard", icon: <LayoutDashboard size={15} /> },
   { href: "/employee/bank",      label: "Banco de Horas", icon: <Wallet size={15} /> },
@@ -36,7 +40,7 @@ export default function AppLayout({
   const pathname = usePathname();
   const router   = useRouter();
   const { theme, setTheme } = useTheme();
-  const nav = userRole === "MANAGER" ? managerNav : employeeNav;
+  const nav = userRole === "SUPER_ADMIN" ? adminNav : userRole === "MANAGER" ? managerNav : employeeNav;
   const initials = userName.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
 
   async function logout() {

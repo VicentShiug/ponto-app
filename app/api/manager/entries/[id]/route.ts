@@ -18,8 +18,8 @@ export async function PATCH(
     const session = await await requireManager();
     const body = schema.parse(await req.json());
 
-    const entry = await prisma.timeEntry.findUnique({ where: { id: params.id } });
-    if (!entry) return NextResponse.json({ error: "Registro não encontrado" }, { status: 404 });
+    const entry = await prisma.timeEntry.findUnique({ where: { id: params.id }, include: { user: { select: { role: true, managerId: true } } } });
+    if (!entry || entry.user.role !== "EMPLOYEE" || entry.user.managerId !== session.userId) return NextResponse.json({ error: "Registro não encontrado" }, { status: 404 });
 
     const toDate = (s: string | null | undefined) => (s ? new Date(s) : null);
 

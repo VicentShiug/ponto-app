@@ -35,13 +35,14 @@ export default function EmployeeDashboardClient({
 }: Props) {
   const router = useRouter();
   const [step, setStep] = useState(initialStep);
-  const [entryId] = useState(todayEntryId);
+  const [entryId, setEntryId] = useState(todayEntryId);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<EditForm>({ clockIn: "", lunchOut: "", lunchIn: "", clockOut: "" });
   const [saving, setSaving] = useState(false);
 
-  const handleClockSuccess = useCallback(() => {
+  const handleClockSuccess = useCallback((newId?: string) => {
+    if (newId) setEntryId(newId);
     router.refresh();
     setStep((s) => s < 4 ? (s + 1) as 0|1|2|3|4 : s);
   }, [router]);

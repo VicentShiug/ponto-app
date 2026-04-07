@@ -10,6 +10,7 @@ datasource db {
 enum Role {
   MANAGER
   EMPLOYEE
+  SUPER_ADMIN
 }
 
 enum OvertimeMode {
@@ -34,6 +35,10 @@ model User {
   darkIntensity  String?    @default("medium") @map("dark_intensity")
   createdAt     DateTime     @default(now()) @map("created_at")
   updatedAt     DateTime     @updatedAt @map("updated_at")
+
+  managerId            String?       @map("manager_id")
+  manager              User?         @relation("ManagerEmployees", fields: [managerId], references: [id])
+  employees            User[]        @relation("ManagerEmployees")
 
   timeEntries          TimeEntry[]
   hourBankAdjustments  HourBankAdjustment[]  @relation("EmployeeAdjustments")

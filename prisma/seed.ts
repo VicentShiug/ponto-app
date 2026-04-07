@@ -21,13 +21,34 @@ async function main() {
   await prisma.user.deleteMany();
 
   const managerHash = await bcrypt.hash("manager123", 10);
-  const manager = await prisma.user.create({
+  const manager1 = await prisma.user.create({
     data: {
       name: "Carlos Gestor",
       email: "manager@empresa.com",
       passwordHash: managerHash,
       role: Role.MANAGER,
       weeklyHours: 40,
+    },
+  });
+
+  const manager2Hash = await bcrypt.hash("manager123", 10);
+  const manager2 = await prisma.user.create({
+    data: {
+      name: "Juliana Gestora",
+      email: "manager2@empresa.com",
+      passwordHash: manager2Hash,
+      role: Role.MANAGER,
+      weeklyHours: 40,
+    },
+  });
+
+  const superAdminHash = await bcrypt.hash("admin123*", 10);
+  await prisma.user.create({
+    data: {
+      name: "Super Admin",
+      email: "gui@email.com",
+      passwordHash: superAdminHash,
+      role: Role.SUPER_ADMIN,
     },
   });
 
@@ -40,6 +61,7 @@ async function main() {
       role: Role.EMPLOYEE,
       weeklyHours: 40,
       overtimeMode: OvertimeMode.HOUR_BANK,
+      managerId: manager1.id,
     },
   });
 
@@ -52,6 +74,7 @@ async function main() {
       role: Role.EMPLOYEE,
       weeklyHours: 40,
       overtimeMode: OvertimeMode.OVERTIME,
+      managerId: manager1.id,
     },
   });
 
@@ -64,12 +87,17 @@ async function main() {
       role: Role.EMPLOYEE,
       weeklyHours: 30,
       overtimeMode: OvertimeMode.HOUR_BANK,
+      managerId: manager2.id,
     },
   });
 
-  const employees = [emp1, emp2, emp3];
+  const employees = [
+    { user: emp1, manager: manager1 },
+    { user: emp2, manager: manager1 },
+    { user: emp3, manager: manager2 }
+  ];
 
-  for (const emp of employees) {
+  for (const { user: emp, manager } of employees) {
     for (let i = 30; i >= 1; i--) {
       const day = subDays(new Date(), i);
       const dayOfWeek = getDay(day);
@@ -108,10 +136,12 @@ async function main() {
 
   console.log("✅ Seed concluído!");
   console.log("---");
-  console.log("👤 Gestor:       manager@empresa.com / manager123");
-  console.log("👤 Funcionário 1: ana@empresa.com / senha123");
-  console.log("👤 Funcionário 2: bruno@empresa.com / senha123");
-  console.log("👤 Funcionário 3: carla@empresa.com / senha123");
+  console.log("👤 Gestor 1:      manager@empresa.com / manager123");
+  console.log("👤 Gestor 2:      manager2@empresa.com / manager123");
+  console.log("👤 Func Ana (G1): ana@empresa.com / senha123");
+  console.log("👤 Func Bruno(G1): bruno@empresa.com / senha123");
+  console.log("👤 Func Carla(G2): carla@empresa.com / senha123");
+  console.log("🔑 Super Admin:   gui@email.com / admin123*");
 }
 
 main()

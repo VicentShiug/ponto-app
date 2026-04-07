@@ -22,7 +22,7 @@ export default async function ManagerDashboard() {
   const today = startOfDayInZone(now);
 
   const employees = await prisma.user.findMany({
-    where: { role: "EMPLOYEE", active: true },
+    where: { role: "EMPLOYEE", active: true, managerId: session.userId },
     orderBy: { name: "asc" },
   });
 

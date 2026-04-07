@@ -12,7 +12,8 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:seed": "ts-node prisma/seed.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "create-super-admin": "ts-node scripts/create-super-admin.ts"
   },
   "ts-node": {
   "compilerOptions": {
