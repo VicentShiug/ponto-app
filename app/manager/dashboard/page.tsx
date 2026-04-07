@@ -7,7 +7,7 @@ import {
   formatMinutes,
   calculateHourBankBalance,
 } from "@/lib/hours";
-import { getDay, subDays, startOfDay, isSameDay, formatDateISO, parseDateFromAPI } from "@/lib/dates";
+import { getDay, subDays, startOfDayInZone, isSameDay, formatDateISO, parseDateFromAPI } from "@/lib/dates";
 import AppLayout from "@/components/AppLayout";
 import ManagerDashboardClient from "./DashboardClient";
 
@@ -19,7 +19,7 @@ export default async function ManagerDashboard() {
   if (!manager) redirect("/login");
 
   const now = new Date();
-  const today = startOfDay(now);
+  const today = startOfDayInZone(now);
 
   const employees = await prisma.user.findMany({
     where: { role: "EMPLOYEE", active: true },

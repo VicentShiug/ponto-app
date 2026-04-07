@@ -41,10 +41,14 @@ export function formatDecimalHours(decimal: number): string {
   return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
 }
 
+const SP_OFFSET_MS = 3 * 60 * 60 * 1000; // America/Sao_Paulo = UTC-3
+
 export function formatTime(date: Date | null | undefined): string {
   if (!date) return "--:--";
-  const hours = date.getHours().toString().padStart(2, "0");
-  const minutes = date.getMinutes().toString().padStart(2, "0");
+  // Converte UTC → horário de Brasília antes de extrair horas/minutos
+  const sp = new Date(date.getTime() - SP_OFFSET_MS);
+  const hours = sp.getUTCHours().toString().padStart(2, "0");
+  const minutes = sp.getUTCMinutes().toString().padStart(2, "0");
   return `${hours}:${minutes}`;
 }
 
