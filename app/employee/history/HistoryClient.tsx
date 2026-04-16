@@ -11,6 +11,7 @@ import { EmptyState } from "@/components/EmptyState";
 
 interface DayData {
   id?: string; date: string; isWeekend: boolean; isFuture: boolean;
+  holiday?: { name: string } | null;
   clockIn: string | null; lunchOut: string | null; lunchIn: string | null; clockOut: string | null;
   workedMinutes: number; diffMinutes: number; status: string;
 }
@@ -166,11 +167,27 @@ export default function HistoryClient({ days, weeks, monthLabel, totalWorkedLabe
             return (
               <div
                 key={d.date}
-                className="aspect-square rounded-lg flex items-center justify-center text-[11px] font-semibold"
-                style={{ backgroundColor: cfg.bg, color: cfg.text, border: `1px solid ${cfg.border}` }}
-                title={d.status !== "weekend" && d.status !== "future" ? `${cfg.label} — ${formatMinutes(d.workedMinutes)}` : undefined}
+                className="relative aspect-square rounded-lg flex flex-col items-center justify-center font-semibold overflow-hidden"
+                style={{ 
+                  backgroundColor: cfg.bg, 
+                  color: cfg.text, 
+                  border: `1px solid ${d.holiday ? 'var(--accent-border)' : cfg.border}`,
+                  backgroundImage: d.holiday && d.status !== 'complete'
+                    ? "repeating-linear-gradient(45deg, transparent, transparent 8px, var(--accent-subtle) 8px, var(--accent-subtle) 16px)" 
+                    : d.holiday 
+                      ? "repeating-linear-gradient(45deg, transparent, transparent 8px, rgba(0,0,0,0.05) 8px, rgba(0,0,0,0.05) 16px)"
+                      : undefined
+                }}
+                title={d.status !== "weekend" && d.status !== "future" ? `${cfg.label} — ${formatMinutes(d.workedMinutes)}${d.holiday ? `\nFeriado: ${d.holiday.name}` : ""}` : d.holiday ? `Feriado: ${d.holiday.name}` : undefined}
               >
-                {date.getUTCDate()}
+                <span className="text-[11px] z-10 px-1 rounded backdrop-blur-sm" style={{ color: d.holiday ? "var(--accent)" : undefined }}>
+                  {date.getUTCDate()}
+                </span>
+                {d.holiday && (
+                  <span className="text-[6px] text-center w-full truncate px-0.5 z-10 mt-0.5 backdrop-blur-sm uppercase font-bold" style={{ color: "var(--accent)" }}>
+                    {d.holiday.name}
+                  </span>
+                )}
               </div>
             );
           })}
@@ -202,11 +219,30 @@ export default function HistoryClient({ days, weeks, monthLabel, totalWorkedLabe
               const date = parseDateFromAPI(d.date);
               const isEditing = editingId === d.id;
               return (
-                <div key={d.date} className="rounded-xl p-3" style={{ backgroundColor: "var(--surface-2)", border: "1px solid var(--border)" }}>
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 text-center shrink-0">
-                      <p className="text-[9px] uppercase" style={{ color: "var(--text-4)" }}>{WEEKDAYS[getDaySP(date)]}</p>
-                      <p className="font-syne font-bold text-sm" style={{ color: "var(--text)" }}>{date.getUTCDate().toString().padStart(2,"0")}</p>
+                <div key={d.date} className="rounded-xl p-3 relative overflow-hidden" style={{ 
+                  backgroundColor: d.holiday ? "var(--accent-subtle)" : "var(--surface-2)", 
+                  border: `1px solid ${d.holiday ? "var(--accent-border)" : "var(--border)"}` 
+                }}>
+                  {d.holiday && (
+                    <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: "repeating-linear-gradient(45deg, var(--accent), var(--accent) 10px, transparent 10px, transparent 20px)" }} />
+                  )}
+                  <div className="flex items-center gap-3 relative z-10">
+                    <div className="w-24 shrink-0 flex flex-col items-start justify-center">
+                      <p className="text-[9px] uppercase mb-0.5" style={{ color: "var(--text-4)" }}>{WEEKDAYS[getDaySP(date)]}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-syne font-bold text-sm" style={{ color: "var(--text)" }}>{date.getUTCDate().toString().padStart(2,"0")}</p>
+                        {d.holiday && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-accent-subtle text-accent border border-accent">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                            Feriado
+                          </span>
+                        )}
+                      </div>
+                      {d.holiday && (
+                        <p className="text-[8px] mt-1 leading-tight text-gray-500 line-clamp-1" title={d.holiday.name}>
+                          {d.holiday.name}
+                        </p>
+                      )}
                     </div>
                     {isEditing ? (
                       <div className="flex-1 grid grid-cols-4 gap-1.5">
@@ -239,7 +275,11 @@ export default function HistoryClient({ days, weeks, monthLabel, totalWorkedLabe
                       <div className="text-right shrink-0 min-w-[4.5rem] whitespace-nowrap">
                         <p className="font-syne text-sm font-bold" style={{ color: "var(--text)" }}>{formatMinutes(d.workedMinutes)}</p>
                         {d.clockOut && d.clockOut !== "--:--" && (
-                          <p className="text-[9px]" style={{ color: d.diffMinutes >= 0 ? "var(--accent)" : "var(--text-3)" }}>
+                          <p 
+                            className="text-[9px] cursor-help" 
+                            style={{ color: d.diffMinutes >= 0 ? "var(--accent)" : "var(--text-3)" }}
+                            title={d.holiday ? "Horas em feriado contam como extra" : undefined}
+                          >
                             {d.diffMinutes >= 0 ? "+" : ""}{formatMinutes(d.diffMinutes)}
                           </p>
                         )}

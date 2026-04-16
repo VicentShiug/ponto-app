@@ -5,6 +5,7 @@ import {
   calcWorkedMinutes, expectedDailyMinutes, formatMinutes, formatTime, calculateHourBankBalance
 } from "@/lib/hours";
 import { getDay, getYear, getMonth, startOfMonth, endOfMonth, isWithinInterval, isSameDay, parseDateFromAPI } from "@/lib/dates";
+import { getHolidays, isHoliday } from "@/lib/holidays";
 import AppLayout from "@/components/AppLayout";
 import EmployeeDetailClient from "./DetailClient";
 
@@ -30,6 +31,12 @@ export default async function EmployeeDetailPage({
   const monthFirstDay = startOfMonth(new Date(year, month, 1));
   const monthLastDay = endOfMonth(new Date(year, month, 1));
 
+  const [holidaysCurrent, holidaysNext] = await Promise.all([
+    getHolidays(year),
+    getHolidays(year + 1),
+  ]);
+  const holidays = [...holidaysCurrent, ...holidaysNext];
+
   const monthEntries = await prisma.timeEntry.findMany({
     where: { userId: employee.id, date: { gte: monthFirstDay, lte: monthLastDay } },
     orderBy: { date: "desc" },
@@ -50,20 +57,34 @@ export default async function EmployeeDetailPage({
   const balanceMinutes = await calculateHourBankBalance(employee.id);
   const monthBalanceMinutes = await calculateHourBankBalance(employee.id, { start: monthFirstDay, end: monthLastDay });
 
-  const serializedEntries = monthEntries.map((e) => ({
-    id: e.id,
-    date: e.date.toISOString(),
-    clockIn: formatTime(e.clockIn),
-    lunchOut: formatTime(e.lunchOut),
-    lunchIn: formatTime(e.lunchIn),
-    clockOut: formatTime(e.clockOut),
-    workedMinutes: calcWorkedMinutes(e),
-    expectedMinutes: expectedPerDay,
-    rawClockIn: e.clockIn?.toISOString() ?? null,
-    rawLunchOut: e.lunchOut?.toISOString() ?? null,
-    rawLunchIn: e.lunchIn?.toISOString() ?? null,
-    rawClockOut: e.clockOut?.toISOString() ?? null,
-  }));
+  const serializedEntries = monthEntries.map((e) => {
+    const holiday = isHoliday(e.date, holidays);
+    
+    const dayOfWeek = getDay(e.date);
+    const userWorkDays = employee.workDays || [1, 2, 3, 4, 5];
+    const isWeekend = !userWorkDays.includes(dayOfWeek);
+    
+    let expectedForEntry = expectedPerDay;
+    if (holiday || isWeekend) {
+      expectedForEntry = 0;
+    }
+
+    return {
+      id: e.id,
+      date: e.date.toISOString(),
+      clockIn: formatTime(e.clockIn),
+      lunchOut: formatTime(e.lunchOut),
+      lunchIn: formatTime(e.lunchIn),
+      clockOut: formatTime(e.clockOut),
+      workedMinutes: calcWorkedMinutes(e),
+      expectedMinutes: expectedForEntry,
+      rawClockIn: e.clockIn?.toISOString() ?? null,
+      rawLunchOut: e.lunchOut?.toISOString() ?? null,
+      rawLunchIn: e.lunchIn?.toISOString() ?? null,
+      rawClockOut: e.clockOut?.toISOString() ?? null,
+      holiday: holiday ? { name: holiday.name } : null,
+    };
+  });
 
   const serializedAdjustments = adjustments.map((a) => ({
     id: a.id,

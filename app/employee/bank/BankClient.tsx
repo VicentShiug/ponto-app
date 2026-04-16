@@ -158,7 +158,15 @@ export default function BankClient({ details, overtimeMode, adjustments }: Props
                         {month.outliers.map((outlier, i) => {
                           return (
                             <div key={i} className={clsx("flex justify-between items-center py-3 px-4 rounded-lg transition-colors", bgRow, hoverRow)}>
-                              <span className={clsx("text-sm", isDark ? "text-gray-400" : "text-gray-500")}>{outlier.dateLabel}</span>
+                              <div className="flex items-center gap-2">
+                                <span className={clsx("text-sm", isDark ? "text-gray-400" : "text-gray-500")}>{outlier.dateLabel}</span>
+                                {outlier.isHoliday && (
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-accent-subtle text-accent border border-accent">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                                    Feriado
+                                  </span>
+                                )}
+                              </div>
                               <span className={clsx("text-sm font-medium", getValueColor(outlier.deltaMinutes))}>
                                 {formatMinutes(outlier.deltaMinutes)}
                               </span>

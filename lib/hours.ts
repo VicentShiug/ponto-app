@@ -2,6 +2,7 @@ import { TimeEntry } from "@prisma/client";
 import { getDay, differenceInMinutes } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { parseDateFromAPI } from "@/lib/dates";
+import { getHolidays, isHoliday } from "@/lib/holidays";
 
 export function calcWorkedMinutes(entry: TimeEntry): number {
   if (!entry.clockIn || !entry.clockOut) return 0;
@@ -118,15 +119,24 @@ export async function calculateHourBankBalance(
   
   let balanceMinutes = 0;
 
+  const years = Array.from(new Set(entries.map(e => parseDateFromAPI(e.date.toISOString()).getFullYear())));
+  const holidayLists = await Promise.all(years.map(getHolidays));
+  const holidays = holidayLists.flat();
+
   for (const entry of entries) {
     const entryDate = parseDateFromAPI(entry.date.toISOString());
     const dayOfWeek = getDay(entryDate);
+    const holiday = isHoliday(entryDate, holidays);
     
-    if (!userWorkDays.includes(dayOfWeek)) continue;
+    if (!userWorkDays.includes(dayOfWeek) && !holiday) continue;
     
     if (entry.clockIn && entry.lunchOut && entry.lunchIn && entry.clockOut) {
       const worked = calcWorkedMinutes(entry);
-      balanceMinutes += worked - expectedPerDay;
+      if (holiday) {
+        balanceMinutes += worked;
+      } else {
+        balanceMinutes += worked - expectedPerDay;
+      }
     }
   }
 

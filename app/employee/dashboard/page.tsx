@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { calcWorkedMinutes, expectedDailyMinutes, formatMinutes, formatTime } from "@/lib/hours";
-import { subDays, startOfDayInZone } from "@/lib/dates";
+import { subDays, startOfDayInZone, getYear } from "@/lib/dates";
+import { getHolidays, isHoliday } from "@/lib/holidays";
 import { calculateDynamicBalance } from "@/lib/hour-bank";
 import AppLayout from "@/components/AppLayout";
 import EmployeeDashboardClient from "./DashboardClient";
@@ -20,6 +21,14 @@ export default async function EmployeeDashboard() {
   const todayEntry = await prisma.timeEntry.findUnique({
     where: { userId_date: { userId: user.id, date: today } },
   });
+
+  const year = getYear(today);
+  const [holidaysCurrent, holidaysNext] = await Promise.all([
+    getHolidays(year),
+    getHolidays(year + 1),
+  ]);
+  const holidays = [...holidaysCurrent, ...holidaysNext];
+  const todayHoliday = isHoliday(today, holidays);
 
   const ninetyDaysAgo = subDays(today, 90);
 
@@ -51,6 +60,7 @@ export default async function EmployeeDashboard() {
     clockOut: formatTime(e.clockOut),
     workedMinutes: calcWorkedMinutes(e),
     expectedMinutes: expectedPerDay,
+    holiday: isHoliday(startOfDayInZone(e.date), holidays),
   }));
 
   return (
@@ -69,6 +79,7 @@ export default async function EmployeeDashboard() {
         balanceLabel={formatMinutes(balanceMinutes)}
         recentEntries={recentEntries}
         expectedPerDay={expectedPerDay}
+        todayHoliday={todayHoliday ? { name: todayHoliday.name } : null}
       />
     </AppLayout>
   );

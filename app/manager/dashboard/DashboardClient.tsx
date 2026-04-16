@@ -16,9 +16,10 @@ interface Props {
   employees: Employee[];
   summary: { present: number; incomplete: number; absent: number; total: number };
   today: string;
+  todayHoliday?: { name: string } | null;
 }
 
-export default function ManagerDashboardClient({ employees, summary, today }: Props) {
+export default function ManagerDashboardClient({ employees, summary, today, todayHoliday }: Props) {
   const [search, setSearch]           = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
@@ -41,6 +42,13 @@ export default function ManagerDashboardClient({ employees, summary, today }: Pr
           {d.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}
         </p>
       </div>
+
+      {todayHoliday && (
+        <div className="rounded-xl px-4 py-3 bg-accent-subtle text-accent flex items-center gap-2 text-sm font-medium border border-accent">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+          Hoje é feriado: {todayHoliday.name}
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

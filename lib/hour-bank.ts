@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getDay } from "date-fns";
 import { parseDateFromAPI } from "@/lib/dates";
 import { calcWorkedMinutes, expectedDailyMinutes } from "@/lib/hours";
+import { getHolidays, isHoliday } from "@/lib/holidays";
 
 /**
  * Calculates the dynamic hour bank balance for a user.
@@ -30,18 +31,28 @@ export async function calculateDynamicBalance(userId: string): Promise<number> {
   const expectedPerDay = expectedDailyMinutes(user.weeklyHours, userWorkDays);
   let balanceMinutes = 0;
 
+  const years = Array.from(new Set(entries.map(e => parseDateFromAPI(e.date.toISOString()).getFullYear())));
+  const holidayLists = await Promise.all(years.map(getHolidays));
+  const holidays = holidayLists.flat();
+
   for (const entry of entries) {
-    const dayOfWeek = getDay(parseDateFromAPI(entry.date.toISOString()));
+    const entryDate = parseDateFromAPI(entry.date.toISOString());
+    const dayOfWeek = getDay(entryDate);
+    const holiday = isHoliday(entryDate, holidays);
 
     // Check if it's a workday
-    if (!userWorkDays.includes(dayOfWeek)) continue;
+    if (!userWorkDays.includes(dayOfWeek) && !holiday) continue;
 
     // We only calculate delta if the entry is complete
     // The business rule mentioned: "TimeEntry completo (entrada + almoço + volta + saída)"
     // As implemented in getEntryStatus, complete means having at least clockIn and clockOut
     if (entry.clockIn && entry.clockOut) {
       const worked = calcWorkedMinutes(entry);
-      balanceMinutes += worked - expectedPerDay;
+      if (holiday) {
+        balanceMinutes += worked;
+      } else {
+        balanceMinutes += worked - expectedPerDay;
+      }
     }
   }
 
@@ -56,6 +67,7 @@ export async function calculateDynamicBalance(userId: string): Promise<number> {
 export interface Outlier {
   dateLabel: string;
   deltaMinutes: number;
+  isHoliday?: boolean;
 }
 
 export interface MonthlyBankData {
@@ -104,15 +116,20 @@ export async function getHourBankDetails(userId: string): Promise<HourBankDetail
   const now = new Date();
   const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
+  const years = Array.from(new Set(entries.map(e => parseDateFromAPI(e.date.toISOString()).getFullYear())));
+  const holidayLists = await Promise.all(years.map(getHolidays));
+  const holidays = holidayLists.flat();
+
   for (const entry of entries) {
     const entryDate = parseDateFromAPI(entry.date.toISOString());
     const dayOfWeek = getDay(entryDate);
+    const holiday = isHoliday(entryDate, holidays);
     
-    if (!userWorkDays.includes(dayOfWeek)) continue;
+    if (!userWorkDays.includes(dayOfWeek) && !holiday) continue;
     
     if (entry.clockIn && entry.lunchOut && entry.lunchIn && entry.clockOut) {
       const worked = calcWorkedMinutes(entry);
-      const delta = worked - expectedPerDay;
+      const delta = holiday ? worked : worked - expectedPerDay;
       totalBalance += delta;
 
       const year = entryDate.getFullYear();
@@ -132,10 +149,11 @@ export async function getHourBankDetails(userId: string): Promise<HourBankDetail
       monthlyMap[monthKey].balanceMinutes += delta;
       monthlyMap[monthKey].daysWorked += 1;
 
-      if (Math.abs(delta) > 30) {
+      if (holiday || Math.abs(delta) > 30) {
         monthlyMap[monthKey].outliers.push({
           dateLabel: `${String(entryDate.getDate()).padStart(2, "0")}/${String(month + 1).padStart(2, "0")}`,
-          deltaMinutes: delta
+          deltaMinutes: delta,
+          isHoliday: !!holiday
         });
       }
 

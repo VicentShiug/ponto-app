@@ -7,7 +7,8 @@ import {
   formatMinutes,
   calculateHourBankBalance,
 } from "@/lib/hours";
-import { getDay, subDays, startOfDayInZone, isSameDay, formatDateISO, parseDateFromAPI } from "@/lib/dates";
+import { getDay, subDays, startOfDayInZone, isSameDay, formatDateISO, parseDateFromAPI, getYear } from "@/lib/dates";
+import { getHolidays, isHoliday } from "@/lib/holidays";
 import AppLayout from "@/components/AppLayout";
 import ManagerDashboardClient from "./DashboardClient";
 
@@ -20,6 +21,14 @@ export default async function ManagerDashboard() {
 
   const now = new Date();
   const today = startOfDayInZone(now);
+  const year = getYear(today);
+
+  const [holidaysCurrent, holidaysNext] = await Promise.all([
+    getHolidays(year),
+    getHolidays(year + 1),
+  ]);
+  const holidays = [...holidaysCurrent, ...holidaysNext];
+  const todayHoliday = isHoliday(today, holidays);
 
   const employees = await prisma.user.findMany({
     where: { role: "EMPLOYEE", active: true, managerId: session.userId },
@@ -69,6 +78,7 @@ export default async function ManagerDashboard() {
         employees={employeeData}
         summary={{ present, incomplete, absent, total: employees.length }}
         today={today.toISOString().slice(0, 10)}
+        todayHoliday={todayHoliday ? { name: todayHoliday.name } : null}
       />
     </AppLayout>
   );

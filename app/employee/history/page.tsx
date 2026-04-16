@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { calcWorkedMinutes, expectedDailyMinutes, formatMinutes, formatTime } from "@/lib/hours";
 import { getDaySP, getYear, getMonth, addDays, startOfMonth, endOfMonth, startOfDay, endOfDay, isAfter, isSameDay, isWithinInterval, formatDateISO, parseDateFromAPI, parseZonedStart, parseZonedEnd } from "@/lib/dates";
+import { getHolidays, isHoliday } from "@/lib/holidays";
 import AppLayout from "@/components/AppLayout";
 import HistoryClient from "./HistoryClient";
 
@@ -27,6 +28,12 @@ export default async function EmployeeHistory({
   // End of month is tricky with zoned. Just take end of month of the first day.
   const lastDay = endOfMonth(firstDay);
 
+  const [holidaysCurrent, holidaysNext] = await Promise.all([
+    getHolidays(year),
+    getHolidays(year + 1),
+  ]);
+  const holidays = [...holidaysCurrent, ...holidaysNext];
+
   const entries = await prisma.timeEntry.findMany({
     where: { userId: user.id, date: { gte: firstDay, lte: lastDay } },
     orderBy: { date: "asc" },
@@ -44,21 +51,32 @@ export default async function EmployeeHistory({
     const dow = getDaySP(d);
     const isWeekend = !userWorkDays.includes(dow);
     const workedMinutes = entry ? calcWorkedMinutes(entry) : 0;
-    const diff = isWeekend ? 0 : workedMinutes - expectedPerDay;
+    
+    // Check if it's a holiday
+    const holiday = isHoliday(d, holidays);
+    
+    // Compute diff: ignore unworked holidays
+    let diff = 0;
+    if (holiday) {
+      diff = workedMinutes;
+    } else if (!isWeekend) {
+      diff = workedMinutes - expectedPerDay;
+    }
 
     days.push({
       id: entry?.id,
       date: dayISO,
       isWeekend,
       isFuture: isAfter(startOfDay(d), now),
+      holiday: holiday ? { name: holiday.name } : null,
       clockIn: entry ? formatTime(entry.clockIn) : null,
       lunchOut: entry ? formatTime(entry.lunchOut) : null,
       lunchIn: entry ? formatTime(entry.lunchIn) : null,
       clockOut: entry ? formatTime(entry.clockOut) : null,
       workedMinutes,
       diffMinutes: diff,
-      status: isWeekend
-        ? "weekend"
+      status: isWeekend || holiday
+        ? "weekend" // We can treat holiday as weekend logically for the calendar or maybe create "holiday"
         : !entry || (!entry.clockIn && !entry.clockOut)
           ? isAfter(startOfDay(d), now)
           ? "future"

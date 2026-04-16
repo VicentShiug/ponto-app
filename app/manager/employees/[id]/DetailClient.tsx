@@ -18,6 +18,7 @@ interface Entry {
   workedMinutes: number; expectedMinutes: number;
   rawClockIn: string | null; rawLunchOut: string | null;
   rawLunchIn: string | null; rawClockOut: string | null;
+  holiday?: { name: string } | null;
 }
 
 interface Adjustment {
@@ -356,11 +357,29 @@ export default function EmployeeDetailClient({
             const diff = entry.workedMinutes - entry.expectedMinutes;
             const isEditing = editEntry?.id === entry.id;
             return (
-              <div key={entry.id} className="card">
-                <div className="flex items-center gap-3">
-                  <div className="text-center w-10 shrink-0">
-                    <p className="text-[10px] text-3 uppercase">{WEEKDAYS[getDay(d)]}</p>
-                    <p className="font-syne font-bold" style={{ color: "var(--text)" }}>{getDate(d).toString().padStart(2, "0")}/{(getMonth(d)+1).toString().padStart(2,"0")}</p>
+              <div key={entry.id} className="card relative overflow-hidden" style={entry.holiday ? { backgroundColor: "var(--accent-subtle)", borderColor: "var(--accent-border)" } : {}}>
+                {entry.holiday && (
+                  <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: "repeating-linear-gradient(45deg, var(--accent), var(--accent) 10px, transparent 10px, transparent 20px)" }} />
+                )}
+                <div className="flex items-center gap-3 relative z-10">
+                  <div className="w-28 shrink-0 flex flex-col items-start justify-center">
+                    <p className="text-[10px] text-3 uppercase mb-0.5">{WEEKDAYS[getDay(d)]}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-syne font-bold" style={{ color: "var(--text)" }}>
+                        {getDate(d).toString().padStart(2, "0")}/{(getMonth(d)+1).toString().padStart(2,"0")}
+                      </p>
+                      {entry.holiday && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-accent-subtle text-accent border border-accent">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                          Feriado
+                        </span>
+                      )}
+                    </div>
+                    {entry.holiday && (
+                      <p className="text-[9px] mt-1 leading-tight text-gray-500 line-clamp-1" title={entry.holiday.name}>
+                        {entry.holiday.name}
+                      </p>
+                    )}
                   </div>
                   {isEditing ? (
                     <div className="flex-1 grid grid-cols-4 gap-2">
@@ -389,7 +408,10 @@ export default function EmployeeDetailClient({
                   <div className="text-right shrink-0 min-w-[4.5rem] whitespace-nowrap">
                     <p className="font-syne text-sm font-bold" style={{ color: "var(--text)" }}>{formatMinutes(entry.workedMinutes)}</p>
                     {entry.clockOut !== "--:--" && (
-                      <p className={clsx("text-xs", diff >= 0 ? (theme === "dark" ? "text-green-400" : "text-green-600") : (theme === "dark" ? "text-red-400" : "text-red-600"))}>
+                      <p 
+                        className={clsx("text-xs cursor-help", diff >= 0 ? (theme === "dark" ? "text-green-400" : "text-green-600") : (theme === "dark" ? "text-red-400" : "text-red-600"))}
+                        title={entry.holiday ? "Horas em feriado contam como extra" : undefined}
+                      >
                         {diff >= 0 ? "+" : ""}{formatMinutes(diff)}
                       </p>
                     )}

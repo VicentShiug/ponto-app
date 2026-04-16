@@ -12,6 +12,7 @@ interface RecentEntry {
   id: string; date: string;
   clockIn: string; lunchOut: string; lunchIn: string; clockOut: string;
   workedMinutes: number; expectedMinutes: number;
+  holiday?: { name: string } | null;
 }
 
 interface Props {
@@ -23,6 +24,7 @@ interface Props {
   balanceLabel: string;
   recentEntries: RecentEntry[];
   expectedPerDay: number;
+  todayHoliday?: { name: string } | null;
 }
 
 const WEEKDAYS = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
@@ -31,7 +33,7 @@ interface EditForm { clockIn: string; lunchOut: string; lunchIn: string; clockOu
 
 export default function EmployeeDashboardClient({
   user, todayEntryId, todayEntry, currentStep: initialStep,
-  balanceMinutes, balanceLabel, recentEntries, expectedPerDay,
+  balanceMinutes, balanceLabel, recentEntries, expectedPerDay, todayHoliday,
 }: Props) {
   const router = useRouter();
   const [step, setStep] = useState(initialStep);
@@ -98,6 +100,13 @@ export default function EmployeeDashboardClient({
         </p>
       </div>
 
+      {todayHoliday && (
+        <div className="rounded-xl px-4 py-3 bg-accent-subtle text-accent flex items-center gap-2 text-sm font-medium border border-accent">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+          Hoje é feriado: {todayHoliday.name}
+        </div>
+      )}
+
       {/* Saldo */}
       <div className="card flex items-center gap-5">
         <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ backgroundColor: "var(--surface-2)", border: "1px solid var(--border)" }}>
@@ -163,19 +172,35 @@ export default function EmployeeDashboardClient({
             return (
               <div
                 key={e.id}
-                className="rounded-xl p-3"
+                className="rounded-xl p-3 relative overflow-hidden"
                 style={{
-                  backgroundColor: isToday ? "var(--accent-subtle)" : "var(--surface-2)",
-                  border: `1px solid ${isToday ? "var(--accent-border)" : "transparent"}`,
+                  backgroundColor: e.holiday ? "var(--accent-subtle)" : isToday ? "var(--accent-subtle)" : "var(--surface-2)",
+                  border: `1px solid ${e.holiday ? "var(--accent-border)" : isToday ? "var(--accent-border)" : "transparent"}`,
                 }}
               >
-                <div className="flex items-center gap-3">
+                {e.holiday && (
+                  <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: "repeating-linear-gradient(45deg, var(--accent), var(--accent) 10px, transparent 10px, transparent 20px)" }} />
+                )}
+                <div className="flex items-center gap-3 relative z-10">
                   {/* Dia */}
-                  <div className="text-center w-9 shrink-0">
-                    <p className="text-[9px] uppercase" style={{ color: "var(--text-4)" }}>{WEEKDAYS[getDay(date)]}</p>
-                    <p className="font-syne font-bold text-sm" style={{ color: "var(--text)" }}>
-                      {getDate(date).toString().padStart(2, "0")}
-                    </p>
+                  <div className="w-24 shrink-0 flex flex-col items-start justify-center">
+                    <p className="text-[9px] uppercase mb-0.5" style={{ color: "var(--text-4)" }}>{WEEKDAYS[getDay(date)]}</p>
+                    <div className="flex items-center gap-2">
+                       <p className="font-syne font-bold text-sm" style={{ color: "var(--text)" }}>
+                         {getDate(date).toString().padStart(2, "0")}
+                       </p>
+                       {e.holiday && (
+                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-accent-subtle text-accent border border-accent">
+                           <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                           Feriado
+                         </span>
+                       )}
+                    </div>
+                    {e.holiday && (
+                      <p className="text-[8px] mt-1 leading-tight text-gray-500 line-clamp-1" title={e.holiday.name}>
+                        {e.holiday.name}
+                      </p>
+                    )}
                   </div>
 
                   {/* Horários: view ou edit */}
