@@ -60,7 +60,7 @@ export default async function EmployeeDashboard() {
     clockOut: formatTime(e.clockOut),
     workedMinutes: calcWorkedMinutes(e),
     expectedMinutes: expectedPerDay,
-    holiday: isHoliday(startOfDayInZone(e.date), holidays),
+    holiday: isHoliday(e.date, holidays),
   }));
 
   return (

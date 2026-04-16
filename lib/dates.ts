@@ -55,19 +55,21 @@ export function parseZonedEnd(dateStr: string): Date {
 }
 
 export function startOfDayInZone(date: Date): Date {
-  return new Date(`${formatDateISO(date)}T00:00:00-03:00`);
+  // Convert to SP timezone to get the correct local date, then build midnight SP
+  const sp = toSP(date);
+  const y = sp.getUTCFullYear();
+  const mo = (sp.getUTCMonth() + 1).toString().padStart(2, "0");
+  const d = sp.getUTCDate().toString().padStart(2, "0");
+  return new Date(`${y}-${mo}-${d}T00:00:00-03:00`);
 }
 
 export function parseTime(timeStr: string, baseDate: Date): Date {
   const [hours, minutes] = timeStr.split(":").map(Number);
-  // Get the São Paulo date from baseDate
-  const sp = toSP(baseDate);
-  const y = sp.getUTCFullYear();
-  const mo = (sp.getUTCMonth() + 1).toString().padStart(2, "0");
-  const d = sp.getUTCDate().toString().padStart(2, "0");
+  // Extract the date string from baseDate (works for both T00:00:00Z and T03:00:00Z)
+  const dateStr = formatDateISO(baseDate);
   const h = hours.toString().padStart(2, "0");
   const m = minutes.toString().padStart(2, "0");
-  return new Date(`${y}-${mo}-${d}T${h}:${m}:00-03:00`);
+  return new Date(`${dateStr}T${h}:${m}:00-03:00`);
 }
 
 export function formatDate(date: Date): string {
@@ -78,11 +80,7 @@ export function formatDate(date: Date): string {
 }
 
 export function formatDateISO(date: Date): string {
-  const sp = toSP(date);
-  const y = sp.getUTCFullYear();
-  const m = (sp.getUTCMonth() + 1).toString().padStart(2, "0");
-  const d = sp.getUTCDate().toString().padStart(2, "0");
-  return `${y}-${m}-${d}`;
+  return date.toISOString().split("T")[0];
 }
 
 export function formatTime(date: Date | null | undefined): string {
