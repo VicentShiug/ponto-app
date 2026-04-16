@@ -61,7 +61,7 @@ export default function EmployeeDashboardClient({
 
   async function saveEdit(e: RecentEntry) {
     setSaving(true);
-    const toISO = (t: string) => t ? `${e.date}T${t}:00` : null;
+    const toISO = (t: string) => t ? `${e.date}T${t}:00-03:00` : null;
     try {
       const res = await fetch(`/api/employee/entries/${e.id}`, {
         method: "PATCH",

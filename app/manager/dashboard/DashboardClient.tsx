@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Users, CheckCircle2, AlertCircle, XCircle, TrendingUp, TrendingDown, Search, ChevronRight } from "lucide-react";
 import { formatMinutes } from "@/lib/hours";
-import { startOfDay } from "@/lib/dates";
+import { parseZonedStart } from "@/lib/dates";
 import { EmptyState } from "@/components/EmptyState";
 
 interface Employee {
@@ -31,7 +31,7 @@ export default function ManagerDashboardClient({ employees, summary, today, toda
     );
   });
 
-  const d = startOfDay(new Date(today));
+  const d = parseZonedStart(today);
   const statusLabels: Record<string, string> = { present: "Presente", incomplete: "Incompleto", absent: "Ausente" };
 
   return (

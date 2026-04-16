@@ -34,7 +34,11 @@ export function parseDate(dateStr: string): Date {
   if (!isValid(parsed)) {
     throw new Error(`Data inválida: ${dateStr}`);
   }
-  return parsed;
+  // Return midnight in São Paulo timezone to match startOfDayInZone
+  const y = parsed.getFullYear();
+  const mo = (parsed.getMonth() + 1).toString().padStart(2, "0");
+  const d = parsed.getDate().toString().padStart(2, "0");
+  return new Date(`${y}-${mo}-${d}T00:00:00-03:00`);
 }
 
 export function parseDateFromAPI(isoString: string): Date {
@@ -56,8 +60,14 @@ export function startOfDayInZone(date: Date): Date {
 
 export function parseTime(timeStr: string, baseDate: Date): Date {
   const [hours, minutes] = timeStr.split(":").map(Number);
-  const date = startOfDay(baseDate);
-  return addMinutes(addHours(date, hours), minutes);
+  // Get the São Paulo date from baseDate
+  const sp = toSP(baseDate);
+  const y = sp.getUTCFullYear();
+  const mo = (sp.getUTCMonth() + 1).toString().padStart(2, "0");
+  const d = sp.getUTCDate().toString().padStart(2, "0");
+  const h = hours.toString().padStart(2, "0");
+  const m = minutes.toString().padStart(2, "0");
+  return new Date(`${y}-${mo}-${d}T${h}:${m}:00-03:00`);
 }
 
 export function formatDate(date: Date): string {
@@ -68,7 +78,11 @@ export function formatDate(date: Date): string {
 }
 
 export function formatDateISO(date: Date): string {
-  return date.toISOString().split("T")[0];
+  const sp = toSP(date);
+  const y = sp.getUTCFullYear();
+  const m = (sp.getUTCMonth() + 1).toString().padStart(2, "0");
+  const d = sp.getUTCDate().toString().padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 export function formatTime(date: Date | null | undefined): string {

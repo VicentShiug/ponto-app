@@ -91,7 +91,7 @@ export default function HistoryClient({ days, weeks, monthLabel, totalWorkedLabe
     if (!d.id) return;
     setSaving(true);
     const dateStr = d.date.split("T")[0];
-    const toISO = (t: string) => t ? `${dateStr}T${t}:00` : null;
+    const toISO = (t: string) => t ? `${dateStr}T${t}:00-03:00` : null;
     try {
       const res = await fetch(`/api/employee/entries/${d.id}`, {
         method: "PATCH",

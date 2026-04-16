@@ -154,7 +154,7 @@ export default function EmployeeDetailClient({
     const date = editEntry.date.split("T")[0];
     function buildDateTime(time: string) {
       if (!time) return null;
-      return `${date}T${time}:00`;
+      return `${date}T${time}:00-03:00`;
     }
     try {
       const res = await fetch(`/api/manager/entries/${editEntry.id}`, {
