@@ -13,6 +13,9 @@ export default async function AuditPage() {
 
   const logs = await prisma.auditLog.findMany({
     orderBy: { createdAt: "desc" },
+    where: {
+      actorId: manager.id,
+    },
     take: 200,
     include: {
       actor: { select: { name: true, email: true } },

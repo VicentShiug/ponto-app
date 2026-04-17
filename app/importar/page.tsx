@@ -18,7 +18,7 @@ export default async function ImportarPage() {
   let employees: { id: string; name: string }[] = [];
   if (user.role === "MANAGER") {
     employees = await prisma.user.findMany({
-      where: { role: "EMPLOYEE" },
+      where: { role: "EMPLOYEE", managerId: user.id },
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     });
