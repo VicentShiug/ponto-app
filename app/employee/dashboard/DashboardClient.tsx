@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { TrendingUp, TrendingDown, Clock, CalendarDays, Edit2, Check, X } from "lucide-react";
+import { TrendingUp, TrendingDown, Clock, CalendarDays, Edit2, Check, X, Trash2 } from "lucide-react";
 import ClockButton from "@/components/ClockButton";
+import TimeInput from "@/components/TimeInput";
 import { formatMinutes } from "@/lib/hours";
 import { getDay, getDate, startOfDay, isSameDay, parseDateFromAPI } from "@/lib/dates";
 import { toast } from "@/components/Toaster";
@@ -47,6 +48,11 @@ export default function EmployeeDashboardClient({
   const [step, setStep] = useState(initialStep);
   const [entryId, setEntryId] = useState(todayEntryId);
 
+  useEffect(() => {
+    setStep(initialStep);
+    setEntryId(todayEntryId);
+  }, [initialStep, todayEntryId]);
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<EditForm>({ clockIn: "", lunchOut: "", lunchIn: "", clockOut: "" });
   const [saving, setSaving] = useState(false);
@@ -84,6 +90,20 @@ export default function EmployeeDashboardClient({
       const data = await res.json();
       if (!res.ok) { toast(data.error || "Erro ao salvar", "error"); return; }
       toast("Registro atualizado!", "success");
+      setEditingId(null);
+      router.refresh();
+    } catch { toast("Erro de conexão", "error"); }
+    finally { setSaving(false); }
+  }
+
+  async function deleteEntry(e: RecentEntry) {
+    if (!window.confirm("Certeza que deseja apagar este registro inteiro? Esta ação não pode ser desfeita.")) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/employee/entries/${e.id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) { toast(data.error || "Erro ao apagar", "error"); return; }
+      toast("Registro apagado!", "success");
       setEditingId(null);
       router.refresh();
     } catch { toast("Erro de conexão", "error"); }
@@ -310,20 +330,22 @@ export default function EmployeeDashboardClient({
                   {/* Horários: view ou edit */}
                   {isEditing ? (
                     <div className="flex-1 grid grid-cols-4 gap-1.5">
-                      {(["clockIn", "lunchOut", "lunchIn", "clockOut"] as const).map((field) => (
-                        <div key={field}>
-                          <p className="text-[8px] uppercase mb-0.5" style={{ color: "var(--text-4)" }}>
-                            {field === "clockIn" ? "Entrada" : field === "lunchOut" ? "Almoço" : field === "lunchIn" ? "Volta" : "Saída"}
-                          </p>
-                          <input
-                            type="time"
-                            className="w-full rounded-lg px-2 py-1.5 text-xs focus:outline-none"
-                            style={{ backgroundColor: "var(--surface)", border: "1px solid var(--border-2)", color: "var(--text)" }}
+                      {(["clockIn", "lunchOut", "lunchIn", "clockOut"] as const).map((field) => {
+                        const labels = {
+                          clockIn: "Entrada",
+                          lunchOut: "Almoço",
+                          lunchIn: "Volta",
+                          clockOut: "Saída"
+                        };
+                        return (
+                          <TimeInput
+                            key={field}
+                            label={labels[field]}
                             value={editForm[field]}
-                            onChange={(ev) => setEditForm({ ...editForm, [field]: ev.target.value })}
+                            onChange={(val) => setEditForm({ ...editForm, [field]: val })}
                           />
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="flex-1 grid grid-cols-4 gap-2 text-center">
@@ -388,6 +410,15 @@ export default function EmployeeDashboardClient({
                           style={{ color: "var(--text-3)" }}
                         >
                           <X size={13} />
+                        </button>
+                        <button
+                          onClick={() => deleteEntry(e)}
+                          disabled={saving}
+                          className="p-1.5 rounded-lg transition-colors"
+                          style={{ color: "#ef4444" }}
+                          title="Apagar registro inteiro"
+                        >
+                          <Trash2 size={13} />
                         </button>
                       </>
                     ) : (

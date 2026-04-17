@@ -47,3 +47,30 @@ export async function PATCH(
     return NextResponse.json({ error: "Erro interno" }, { status: 500 });
   }
 }
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await requireSession();
+    
+    const entry = await prisma.timeEntry.findUnique({ where: { id: params.id } });
+    if (!entry) {
+      return NextResponse.json({ error: "Registro não encontrado" }, { status: 404 });
+    }
+
+    if (entry.userId !== session.userId) {
+      return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
+    }
+
+    await prisma.timeEntry.delete({
+      where: { id: params.id }
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json({ error: "Erro interno" }, { status: 500 });
+  }
+}

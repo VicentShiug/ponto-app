@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Camera, Sun, Moon, Check, Eye, EyeOff, X, Clock } from "lucide-react";
+import TimeInput from "@/components/TimeInput";
 import { clsx } from "clsx";
 import { toast } from "@/components/Toaster";
 import { useTheme } from "@/components/ThemeProvider";
@@ -295,42 +296,26 @@ export default function ProfileClient({ user: initial }: { user: User }) {
             Configure seus horários aproximados. Eles serão usados como sugestão no dashboard.
           </p>
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">Entrada</label>
-              <input
-                className="input"
-                type="time"
-                value={journeyStart}
-                onChange={(e) => setJourneyStart(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="label">Saída p/ Almoço</label>
-              <input
-                className="input"
-                type="time"
-                value={journeyLunch}
-                onChange={(e) => setJourneyLunch(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="label">Volta do Almoço</label>
-              <input
-                className="input"
-                type="time"
-                value={journeyLunchReturn}
-                onChange={(e) => setJourneyLunchReturn(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="label">Fim do Turno</label>
-              <input
-                className="input"
-                type="time"
-                value={journeyEnd}
-                onChange={(e) => setJourneyEnd(e.target.value)}
-              />
-            </div>
+            <TimeInput
+              label="Entrada"
+              value={journeyStart}
+              onChange={setJourneyStart}
+            />
+            <TimeInput
+              label="Saída p/ Almoço"
+              value={journeyLunch}
+              onChange={setJourneyLunch}
+            />
+            <TimeInput
+              label="Volta do Almoço"
+              value={journeyLunchReturn}
+              onChange={setJourneyLunchReturn}
+            />
+            <TimeInput
+              label="Fim do Turno"
+              value={journeyEnd}
+              onChange={setJourneyEnd}
+            />
           </div>
           {journeyStart && journeyLunch && journeyLunchReturn && journeyEnd && (
             <p className="text-xs" style={{ color: "var(--text-3)" }}>

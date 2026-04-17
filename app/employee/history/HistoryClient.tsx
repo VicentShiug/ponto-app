@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Edit2, Check, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Edit2, Check, X, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
+import TimeInput from "@/components/TimeInput";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { formatMinutes } from "@/lib/hours";
 import { getDaySP, getDate, getYear, getMonth, startOfDay, parseDateFromAPI, toSP } from "@/lib/dates";
@@ -101,6 +102,21 @@ export default function HistoryClient({ days, weeks, monthLabel, totalWorkedLabe
       const data = await res.json();
       if (!res.ok) { toast(data.error || "Erro ao salvar", "error"); return; }
       toast("Registro atualizado!", "success");
+      setEditingId(null);
+      router.refresh();
+    } catch { toast("Erro de conexão", "error"); }
+    finally { setSaving(false); }
+  }
+
+  async function deleteEntry(d: DayData) {
+    if (!d.id) return;
+    if (!window.confirm("Certeza que deseja apagar este registro inteiro? Esta ação não pode ser desfeita.")) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/employee/entries/${d.id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) { toast(data.error || "Erro ao apagar", "error"); return; }
+      toast("Registro apagado!", "success");
       setEditingId(null);
       router.refresh();
     } catch { toast("Erro de conexão", "error"); }
@@ -246,20 +262,22 @@ export default function HistoryClient({ days, weeks, monthLabel, totalWorkedLabe
                     </div>
                     {isEditing ? (
                       <div className="flex-1 grid grid-cols-4 gap-1.5">
-                        {(["clockIn","lunchOut","lunchIn","clockOut"] as const).map((field) => (
-                          <div key={field}>
-                            <p className="text-[8px] uppercase mb-0.5" style={{ color: "var(--text-4)" }}>
-                              {field === "clockIn" ? "Entrada" : field === "lunchOut" ? "Saída Alm." : field === "lunchIn" ? "Volta Alm." : "Saída"}
-                            </p>
-                            <input
-                              type="time"
-                              className="w-full rounded-lg px-2 py-1.5 text-xs focus:outline-none"
-                              style={{ backgroundColor: "var(--surface)", border: "1px solid var(--border-2)", color: "var(--text)" }}
+                        {(["clockIn", "lunchOut", "lunchIn", "clockOut"] as const).map((field) => {
+                          const labels = {
+                            clockIn: "Entrada",
+                            lunchOut: "Saída Alm.",
+                            lunchIn: "Volta Alm.",
+                            clockOut: "Saída"
+                          };
+                          return (
+                            <TimeInput
+                              key={field}
+                              label={labels[field]}
                               value={editForm[field]}
-                              onChange={(e) => setEditForm({ ...editForm, [field]: e.target.value })}
+                              onChange={(val) => setEditForm({ ...editForm, [field]: val })}
                             />
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : (
                       <div className="flex-1 grid grid-cols-4 gap-2 text-center">
@@ -293,6 +311,9 @@ export default function HistoryClient({ days, weeks, monthLabel, totalWorkedLabe
                           </button>
                           <button onClick={() => setEditingId(null)} className="p-1.5 rounded-lg transition-colors" style={{ color: "var(--text-3)" }}>
                             <X size={13} />
+                          </button>
+                          <button onClick={() => deleteEntry(d)} disabled={saving} className="p-1.5 rounded-lg transition-colors" style={{ color: "#ef4444" }} title="Apagar registro inteiro">
+                            <Trash2 size={13} />
                           </button>
                         </>
                       ) : (

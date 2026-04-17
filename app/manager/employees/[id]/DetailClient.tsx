@@ -6,6 +6,7 @@ import { clsx } from "clsx";
 import {
   TrendingUp, TrendingDown, Plus, Minus, Edit2, Check, X, ArrowLeft, ChevronLeft, ChevronRight, Trash2,
 } from "lucide-react";
+import TimeInput from "@/components/TimeInput";
 import Link from "next/link";
 import { toast } from "@/components/Toaster";
 import { useTheme } from "@/components/ThemeProvider";
@@ -383,17 +384,22 @@ export default function EmployeeDetailClient({
                   </div>
                   {isEditing ? (
                     <div className="flex-1 grid grid-cols-4 gap-2">
-                      {["clockIn","lunchOut","lunchIn","clockOut"].map((field) => (
-                        <div key={field}>
-                          <p className="text-[10px] font-medium text-3 uppercase mb-0.5">
-                            {field === "clockIn" ? "Entrada" : field === "lunchOut" ? "Saída Alm." : field === "lunchIn" ? "Volta Alm." : "Saída"}
-                          </p>
-                          <input type="time" className="input py-1.5 text-xs"
-                            value={editForm[field as keyof typeof editForm]}
-                            onChange={(e) => setEditForm({ ...editForm, [field]: e.target.value })}
+                      {(["clockIn", "lunchOut", "lunchIn", "clockOut"] as const).map((field) => {
+                        const labels = {
+                          clockIn: "Entrada",
+                          lunchOut: "Saída Alm.",
+                          lunchIn: "Volta Alm.",
+                          clockOut: "Saída"
+                        };
+                        return (
+                          <TimeInput
+                            key={field}
+                            label={labels[field]}
+                            value={editForm[field]}
+                            onChange={(val) => setEditForm({ ...editForm, [field]: val })}
                           />
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="flex-1 grid grid-cols-4 gap-2 text-center">
