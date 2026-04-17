@@ -10,13 +10,13 @@ export default async function ProfilePage() {
 
   const user = await prisma.user.findUnique({
     where: { id: session.userId },
-    select: { id: true, name: true, email: true, weeklyHours: true, workDays: true, role: true, avatarUrl: true, accentColor: true },
+    select: { id: true, name: true, email: true, weeklyHours: true, workDays: true, role: true, avatarUrl: true, accentColor: true, journeyStart: true, journeyLunch: true, journeyLunchReturn: true, journeyEnd: true },
   });
   if (!user) redirect("/login");
 
   return (
     <AppLayout userName={user.name} userRole={user.role} avatarUrl={user.avatarUrl ?? undefined}>
-      <ProfileClient user={{ ...user, avatarUrl: user.avatarUrl ?? null, accentColor: user.accentColor ?? "default", workDays: user.workDays ?? [1,2,3,4,5] }} />
+      <ProfileClient user={{ ...user, avatarUrl: user.avatarUrl ?? null, accentColor: user.accentColor ?? "default", workDays: user.workDays ?? [1,2,3,4,5], journeyStart: user.journeyStart ?? null, journeyLunch: user.journeyLunch ?? null, journeyLunchReturn: user.journeyLunchReturn ?? null, journeyEnd: user.journeyEnd ?? null }} />
     </AppLayout>
   );
 }

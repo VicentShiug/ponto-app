@@ -15,6 +15,13 @@ interface RecentEntry {
   holiday?: { name: string } | null;
 }
 
+interface Journey {
+  start: string | null;
+  lunch: string | null;
+  lunchReturn: string | null;
+  end: string | null;
+}
+
 interface Props {
   user: { name: string; weeklyHours: number; overtimeMode: string };
   todayEntryId: string | null;
@@ -25,6 +32,7 @@ interface Props {
   recentEntries: RecentEntry[];
   expectedPerDay: number;
   todayHoliday?: { name: string } | null;
+  journey: Journey;
 }
 
 const WEEKDAYS = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
@@ -33,7 +41,7 @@ interface EditForm { clockIn: string; lunchOut: string; lunchIn: string; clockOu
 
 export default function EmployeeDashboardClient({
   user, todayEntryId, todayEntry, currentStep: initialStep,
-  balanceMinutes, balanceLabel, recentEntries, expectedPerDay, todayHoliday,
+  balanceMinutes, balanceLabel, recentEntries, expectedPerDay, todayHoliday, journey,
 }: Props) {
   const router = useRouter();
   const [step, setStep] = useState(initialStep);
@@ -89,6 +97,90 @@ export default function EmployeeDashboardClient({
     ? [todayEntry.clockIn, todayEntry.lunchOut, todayEntry.lunchIn, todayEntry.clockOut]
     : null;
 
+  // ── Dynamic journey suggestions ──────────────────────────────────
+  function timeToMinutes(t: string): number {
+    const [h, m] = t.split(":").map(Number);
+    return h * 60 + m;
+  }
+  function minutesToTime(mins: number): string {
+    const h = Math.floor(mins / 60) % 24;
+    const m = Math.round(mins % 60);
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  }
+  function hasTime(t: string | undefined | null): boolean {
+    return !!t && t !== "--:--";
+  }
+
+  /**
+   * Compute suggested times for a single day entry.
+   * Returns { lunchOut, lunchIn, clockOut } as HH:mm strings or null.
+   */
+  function computeSuggestions(
+    entry: { clockIn: string; lunchOut: string; lunchIn: string; clockOut: string },
+  ): { lunchOut: string | null; lunchIn: string | null; clockOut: string | null } {
+    const result: { lunchOut: string | null; lunchIn: string | null; clockOut: string | null } = {
+      lunchOut: null, lunchIn: null, clockOut: null,
+    };
+
+    // Need at least the configured lunch interval + a real clockIn to produce suggestions
+    if (!hasTime(entry.clockIn)) return result;
+
+    const jLunch = journey.lunch ?? "12:00";
+    const jLunchReturn = journey.lunchReturn ?? "13:00";
+    const configuredLunchDuration = timeToMinutes(jLunchReturn) - timeToMinutes(jLunch);
+
+    const clockInMins = timeToMinutes(entry.clockIn);
+
+    // --- Suggestion for lunchOut ---
+    if (!hasTime(entry.lunchOut) && !hasTime(entry.clockOut)) {
+      // Use configured lunch time, or clockIn + half the working hours
+      result.lunchOut = jLunch;
+    }
+
+    // --- Suggestion for lunchIn ---
+    if (!hasTime(entry.lunchIn) && !hasTime(entry.clockOut)) {
+      if (hasTime(entry.lunchOut)) {
+        // Lunch started: suggest return = actual lunchOut + configured lunch duration
+        result.lunchIn = minutesToTime(timeToMinutes(entry.lunchOut) + configuredLunchDuration);
+      } else {
+        // Lunch hasn't started: use configured return time
+        result.lunchIn = jLunchReturn;
+      }
+    }
+
+    // --- Suggestion for clockOut ---
+    if (!hasTime(entry.clockOut)) {
+      if (hasTime(entry.lunchIn) && hasTime(entry.lunchOut)) {
+        // Full lunch interval is known
+        const actualLunchDuration = timeToMinutes(entry.lunchIn) - timeToMinutes(entry.lunchOut);
+        result.clockOut = minutesToTime(clockInMins + expectedPerDay + actualLunchDuration);
+      } else if (hasTime(entry.lunchOut) && !hasTime(entry.lunchIn)) {
+        // On lunch right now: use suggested lunchIn to compute
+        const suggestedLunchInMins = timeToMinutes(entry.lunchOut) + configuredLunchDuration;
+        const lunchDuration = suggestedLunchInMins - timeToMinutes(entry.lunchOut);
+        result.clockOut = minutesToTime(clockInMins + expectedPerDay + lunchDuration);
+      } else if (!hasTime(entry.lunchOut)) {
+        // No lunch at all — could be skipping (step goes directly to clockOut)
+        // If we're at step 3 (skip lunch path), suggest clockIn + expectedPerDay
+        // If still at step 1, suggest with configured lunch
+        if (step >= 3) {
+          // Skipped lunch
+          result.clockOut = minutesToTime(clockInMins + expectedPerDay);
+        } else {
+          // Still before lunch — suggest with configured lunch duration
+          result.clockOut = minutesToTime(clockInMins + expectedPerDay + configuredLunchDuration);
+        }
+      }
+    }
+
+    return result;
+  }
+
+  // Today's suggestions
+  const todaySuggestions = todayEntry
+    ? computeSuggestions(todayEntry)
+    : { lunchOut: null, lunchIn: null, clockOut: null };
+
   return (
     <div className="max-w-2xl mx-auto space-y-5">
       <div>
@@ -137,16 +229,28 @@ export default function EmployeeDashboardClient({
         {/* Marcações de hoje */}
         {todayTimes && (
           <div className="w-full grid grid-cols-4 gap-2 text-center mb-4 px-1">
-            {todayTimes.map((t, i) => (
-              <div key={i}>
-                <p className="text-[10px] uppercase font-medium" style={{ color: "var(--text-3)" }}>
-                  {todayLabels[i]}
-                </p>
-                <p className="text-sm font-semibold" style={{ color: t && t !== "--:--" ? "var(--text)" : "var(--text-4)" }}>
-                  {t && t !== "--:--" ? t : "--:--"}
-                </p>
-              </div>
-            ))}
+            {todayTimes.map((t, i) => {
+              const suggestion = [null, todaySuggestions.lunchOut, todaySuggestions.lunchIn, todaySuggestions.clockOut][i];
+              const isActual = hasTime(t);
+              const display = isActual ? t : suggestion;
+              return (
+                <div key={i}>
+                  <p className="text-[10px] uppercase font-medium" style={{ color: "var(--text-3)" }}>
+                    {todayLabels[i]}
+                  </p>
+                  <p
+                    className="text-sm font-semibold"
+                    style={{ color: isActual ? "var(--text)" : display ? "var(--text-4)" : "var(--text-4)" }}
+                  >
+                    {display ? (
+                      isActual ? display : <span style={{ opacity: 0.45 }}>~{display}</span>
+                    ) : (
+                      "--:--"
+                    )}
+                  </p>
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -223,14 +327,30 @@ export default function EmployeeDashboardClient({
                     </div>
                   ) : (
                     <div className="flex-1 grid grid-cols-4 gap-2 text-center">
-                      {[e.clockIn, e.lunchOut, e.lunchIn, e.clockOut].map((t, i) => (
-                        <div key={i}>
-                          <p className="text-[10px] uppercase font-medium" style={{ color: "var(--text-3)" }}>
-                            {["Entrada","Almoço","Volta","Saída"][i]}
-                          </p>
-                          <p className="text-sm font-medium" style={{ color: "var(--text-2)" }}>{t}</p>
-                        </div>
-                      ))}
+                      {[e.clockIn, e.lunchOut, e.lunchIn, e.clockOut].map((t, i) => {
+                        // Show suggestions only for today's entry
+                        let suggestion: string | null = null;
+                        if (isToday) {
+                          const entrySuggestions = computeSuggestions(e);
+                          suggestion = [null, entrySuggestions.lunchOut, entrySuggestions.lunchIn, entrySuggestions.clockOut][i];
+                        }
+                        const isActual = hasTime(t);
+                        const display = isActual ? t : suggestion;
+                        return (
+                          <div key={i}>
+                            <p className="text-[10px] uppercase font-medium" style={{ color: "var(--text-3)" }}>
+                              {["Entrada","Almoço","Volta","Saída"][i]}
+                            </p>
+                            <p className="text-sm font-medium" style={{ color: "var(--text-2)" }}>
+                              {display ? (
+                                isActual ? display : <span style={{ opacity: 0.4 }}>~{display}</span>
+                              ) : (
+                                t
+                              )}
+                            </p>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
 

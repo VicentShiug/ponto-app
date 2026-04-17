@@ -33,6 +33,10 @@ model User {
   theme         String?      @default("light") @map("theme")
   lightIntensity String?    @default("medium") @map("light_intensity")
   darkIntensity  String?    @default("medium") @map("dark_intensity")
+  journeyStart       String?  @map("journey_start")
+  journeyLunch       String?  @map("journey_lunch")
+  journeyLunchReturn String?  @map("journey_lunch_return")
+  journeyEnd         String?  @map("journey_end")
   createdAt     DateTime     @default(now()) @map("created_at")
   updatedAt     DateTime     @updatedAt @map("updated_at")
 

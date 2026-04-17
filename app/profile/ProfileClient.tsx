@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Sun, Moon, Check, Eye, EyeOff, X } from "lucide-react";
+import { Camera, Sun, Moon, Check, Eye, EyeOff, X, Clock } from "lucide-react";
 import { clsx } from "clsx";
 import { toast } from "@/components/Toaster";
 import { useTheme } from "@/components/ThemeProvider";
@@ -16,6 +16,10 @@ interface User {
   role: string;
   avatarUrl: string | null;
   accentColor: string;
+  journeyStart: string | null;
+  journeyLunch: string | null;
+  journeyLunchReturn: string | null;
+  journeyEnd: string | null;
 }
 
 const ACCENTS = [
@@ -61,6 +65,10 @@ export default function ProfileClient({ user: initial }: { user: User }) {
   const [saving, setSaving]           = useState(false);
   const [savingPw, setSavingPw]       = useState(false);
   const [emailError, setEmailError]   = useState("");
+  const [journeyStart, setJourneyStart]             = useState(initial.journeyStart ?? "");
+  const [journeyLunch, setJourneyLunch]             = useState(initial.journeyLunch ?? "");
+  const [journeyLunchReturn, setJourneyLunchReturn] = useState(initial.journeyLunchReturn ?? "");
+  const [journeyEnd, setJourneyEnd]                 = useState(initial.journeyEnd ?? "");
 
   const selectedDaysCount = workDays.length;
   const dailyHours = selectedDaysCount > 0 ? Number(weeklyHours) / selectedDaysCount : 0;
@@ -89,6 +97,10 @@ export default function ProfileClient({ user: initial }: { user: User }) {
           weeklyHours: Number(weeklyHours),
           workDays,
           avatarUrl,
+          journeyStart: journeyStart || null,
+          journeyLunch: journeyLunch || null,
+          journeyLunchReturn: journeyLunchReturn || null,
+          journeyEnd: journeyEnd || null,
         }),
       });
       const data = await res.json();
@@ -271,6 +283,65 @@ export default function ProfileClient({ user: initial }: { user: User }) {
           {saving ? "Salvando..." : "Salvar informações"}
         </button>
       </div>
+
+      {/* Minha Jornada */}
+      {initial.role === "EMPLOYEE" && (
+        <div className="card space-y-4">
+          <div className="flex items-center gap-2">
+            <Clock size={13} style={{ color: "var(--text-3)" }} />
+            <p className="text-[10px] text-3 uppercase tracking-widest">Minha Jornada</p>
+          </div>
+          <p className="text-xs" style={{ color: "var(--text-3)" }}>
+            Configure seus horários aproximados. Eles serão usados como sugestão no dashboard.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Entrada</label>
+              <input
+                className="input"
+                type="time"
+                value={journeyStart}
+                onChange={(e) => setJourneyStart(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="label">Saída p/ Almoço</label>
+              <input
+                className="input"
+                type="time"
+                value={journeyLunch}
+                onChange={(e) => setJourneyLunch(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="label">Volta do Almoço</label>
+              <input
+                className="input"
+                type="time"
+                value={journeyLunchReturn}
+                onChange={(e) => setJourneyLunchReturn(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="label">Fim do Turno</label>
+              <input
+                className="input"
+                type="time"
+                value={journeyEnd}
+                onChange={(e) => setJourneyEnd(e.target.value)}
+              />
+            </div>
+          </div>
+          {journeyStart && journeyLunch && journeyLunchReturn && journeyEnd && (
+            <p className="text-xs" style={{ color: "var(--text-3)" }}>
+              Jornada configurada: <span style={{ color: "var(--accent)" }}>{journeyStart}</span> → <span style={{ color: "var(--accent)" }}>{journeyLunch}</span> · <span style={{ color: "var(--accent)" }}>{journeyLunchReturn}</span> → <span style={{ color: "var(--accent)" }}>{journeyEnd}</span>
+            </p>
+          )}
+          <button onClick={handleSaveProfile} disabled={saving} className="btn-primary w-full">
+            {saving ? "Salvando..." : "Salvar jornada"}
+          </button>
+        </div>
+      )}
 
       {/* Password */}
       <div className="card space-y-4">

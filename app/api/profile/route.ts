@@ -3,6 +3,8 @@ import { requireSession, hashPassword, comparePassword, signToken, setSessionCoo
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
+const timeRegex = /^\d{2}:\d{2}$/;
+
 const patchSchema = z.object({
   name:         z.string().min(2).optional(),
   email:        z.string().email().optional(),
@@ -15,6 +17,10 @@ const patchSchema = z.object({
   theme:        z.string().optional(),
   lightIntensity: z.string().optional(),
   darkIntensity: z.string().optional(),
+  journeyStart:       z.string().regex(timeRegex).nullable().optional(),
+  journeyLunch:       z.string().regex(timeRegex).nullable().optional(),
+  journeyLunchReturn: z.string().regex(timeRegex).nullable().optional(),
+  journeyEnd:         z.string().regex(timeRegex).nullable().optional(),
 });
 
 export async function GET() {
@@ -22,7 +28,7 @@ export async function GET() {
     const session = await requireSession();
     const user = await prisma.user.findUnique({
       where: { id: session.userId },
-      select: { id: true, name: true, email: true, weeklyHours: true, workDays: true, role: true, avatarUrl: true, accentColor: true, theme: true, lightIntensity: true, darkIntensity: true },
+      select: { id: true, name: true, email: true, weeklyHours: true, workDays: true, role: true, avatarUrl: true, accentColor: true, theme: true, lightIntensity: true, darkIntensity: true, journeyStart: true, journeyLunch: true, journeyLunchReturn: true, journeyEnd: true },
     });
     return NextResponse.json({ user });
   } catch (err) {
@@ -66,6 +72,12 @@ export async function PATCH(req: NextRequest) {
       updateData.workDays = body.workDays;
     }
 
+    // Journey configuration
+    if (body.journeyStart !== undefined)       updateData.journeyStart       = body.journeyStart;
+    if (body.journeyLunch !== undefined)       updateData.journeyLunch       = body.journeyLunch;
+    if (body.journeyLunchReturn !== undefined) updateData.journeyLunchReturn = body.journeyLunchReturn;
+    if (body.journeyEnd !== undefined)         updateData.journeyEnd         = body.journeyEnd;
+
     // Password change
     if (body.newPassword) {
       if (!body.currentPassword) {
@@ -103,6 +115,10 @@ export async function PATCH(req: NextRequest) {
         theme: user.theme,
         lightIntensity: user.lightIntensity,
         darkIntensity: user.darkIntensity,
+        journeyStart: user.journeyStart,
+        journeyLunch: user.journeyLunch,
+        journeyLunchReturn: user.journeyLunchReturn,
+        journeyEnd: user.journeyEnd,
       },
     });
   } catch (err) {

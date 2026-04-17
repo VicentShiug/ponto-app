@@ -12,7 +12,7 @@ export default async function EmployeeDashboard() {
   const session = await getSession();
   if (!session || session.role !== "EMPLOYEE") redirect("/login");
 
-  const user = await prisma.user.findUnique({ where: { id: session.userId }, select: { id: true, name: true, email: true, role: true, weeklyHours: true, workDays: true, active: true, avatarUrl: true, overtimeMode: true, passwordHash: true, createdAt: true, updatedAt: true } });
+  const user = await prisma.user.findUnique({ where: { id: session.userId }, select: { id: true, name: true, email: true, role: true, weeklyHours: true, workDays: true, active: true, avatarUrl: true, overtimeMode: true, passwordHash: true, createdAt: true, updatedAt: true, journeyStart: true, journeyLunch: true, journeyLunchReturn: true, journeyEnd: true } });
   if (!user) redirect("/login");
 
   const now = new Date();
@@ -80,6 +80,12 @@ export default async function EmployeeDashboard() {
         recentEntries={recentEntries}
         expectedPerDay={expectedPerDay}
         todayHoliday={todayHoliday ? { name: todayHoliday.name } : null}
+        journey={{
+          start: user.journeyStart ?? null,
+          lunch: user.journeyLunch ?? null,
+          lunchReturn: user.journeyLunchReturn ?? null,
+          end: user.journeyEnd ?? null,
+        }}
       />
     </AppLayout>
   );
