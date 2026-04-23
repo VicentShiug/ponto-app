@@ -71,9 +71,9 @@ export default function ReportsClient({ employees }: Props) {
 
         autoTable(doc, {
           startY: 42,
-          head: [["Data", "Dia", "Entrada", "Almoço", "Volta", "Saída", "Total", "Diferença"]],
+          head: [["Data", "Dia", "Tipo", "Entrada", "Almoço", "Volta", "Saída", "Total", "Diferença"]],
           body: report.entries.map((e: any) => [
-            e.date, e.weekday, e.clockIn, e.lunchOut, e.lunchIn, e.clockOut,
+            e.date, e.weekday, e.tipo || "", e.clockIn, e.lunchOut, e.lunchIn, e.clockOut,
             formatMinutes(e.workedMinutes), (e.diff >= 0 ? "+" : "") + formatMinutes(e.diff),
           ]),
           styles: { fontSize: 8, cellPadding: 3 },
@@ -105,16 +105,16 @@ export default function ReportsClient({ employees }: Props) {
         const rows = [
           [report.employeeName],
           [`Período: ${formatDisplayDate(startDate)} a ${formatDisplayDate(endDate)}`],
-          [`Carga: ${report.weeklyHours}h/sem`, "", "", "", "", "", "", `Saldo: ${formatMinutes(report.balanceMinutes)}`],
+          [`Carga: ${report.weeklyHours}h/sem`, "", "", "", "", "", "", "", `Saldo: ${formatMinutes(report.balanceMinutes)}`],
           [],
-          ["Data", "Dia", "Entrada", "Saída Almoço", "Volta Almoço", "Saída", "Total (min)", "Diferença (min)"],
+          ["Data", "Dia", "Tipo", "Entrada", "Saída Almoço", "Volta Almoço", "Saída", "Total (min)", "Diferença (min)"],
           ...report.entries.map((e: any) => [
-            e.date, e.weekday, e.clockIn, e.lunchOut, e.lunchIn, e.clockOut,
+            e.date, e.weekday, e.tipo || "", e.clockIn, e.lunchOut, e.lunchIn, e.clockOut,
             e.workedMinutes, e.diff,
           ]),
         ];
         const ws = XLSX.utils.aoa_to_sheet(rows);
-        ws["!cols"] = [14, 8, 10, 14, 14, 10, 12, 14].map((w) => ({ wch: w }));
+        ws["!cols"] = [14, 8, 24, 10, 14, 14, 10, 12, 14].map((w) => ({ wch: w }));
         const sheetName = report.employeeName.substring(0, 31);
         XLSX.utils.book_append_sheet(wb, ws, sheetName);
       }

@@ -4,17 +4,23 @@ import { prisma } from "@/lib/prisma";
 import { parseDateFromAPI } from "@/lib/dates";
 import { getHolidays, isHoliday } from "@/lib/holidays";
 
-export function calcWorkedMinutes(entry: TimeEntry): number {
-  if (!entry.clockIn || !entry.clockOut) return 0;
+export function calcWorkedMinutes(entry: { clockIn?: Date | null; lunchOut?: Date | null; lunchIn?: Date | null; clockOut?: Date | null; }): number {
+  if (!entry.clockIn) return 0;
+  let totalMin = 0;
 
-  let totalMinutes = differenceInMinutes(entry.clockOut, entry.clockIn);
-
-  if (entry.lunchOut && entry.lunchIn) {
-    const lunchMinutes = differenceInMinutes(entry.lunchIn, entry.lunchOut);
-    totalMinutes -= lunchMinutes;
+  if (entry.clockOut && !entry.lunchOut && !entry.lunchIn) {
+    return differenceInMinutes(entry.clockOut, entry.clockIn);
   }
 
-  return Math.max(0, totalMinutes);
+  if (entry.lunchOut) {
+    totalMin += differenceInMinutes(entry.lunchOut, entry.clockIn);
+  }
+
+  if (entry.lunchIn && entry.clockOut) {
+    totalMin += differenceInMinutes(entry.clockOut, entry.lunchIn);
+  }
+
+  return Math.max(0, totalMin);
 }
 
 export function formatMinutes(minutes: number): string {
@@ -114,6 +120,14 @@ export async function calculateHourBankBalance(
     },
   });
 
+  // Fetch medical certificates
+  const { getCertificatesForDateRange, getFullDayCertificateForDate, getPartialCertificateForDate, getPartialCertificateMinutes, getFullDayDates } = await import("@/lib/medical-certificates");
+  
+  const allDates = entries.map(e => parseDateFromAPI(e.date.toISOString()));
+  let certStart = options?.start || (allDates.length ? new Date(Math.min(...allDates.map(d => d.getTime()))) : new Date());
+  let certEnd = options?.end || (allDates.length ? new Date(Math.max(...allDates.map(d => d.getTime()))) : new Date());
+  const certificates = await getCertificatesForDateRange(userId, certStart, certEnd);
+
   const userWorkDays = user.workDays || [1, 2, 3, 4, 5];
   const expectedPerDay = expectedDailyMinutes(user.weeklyHours, userWorkDays);
   
@@ -123,17 +137,31 @@ export async function calculateHourBankBalance(
   const holidayLists = await Promise.all(years.map(getHolidays));
   const holidays = holidayLists.flat();
 
+  const fullDayDates = getFullDayDates(certificates);
+
   for (const entry of entries) {
     const entryDate = parseDateFromAPI(entry.date.toISOString());
+    const entryDateISO = entryDate.toISOString().split("T")[0];
     const dayOfWeek = getDay(entryDate);
     const holiday = isHoliday(entryDate, holidays);
     
     if (!userWorkDays.includes(dayOfWeek) && !holiday) continue;
+
+    // FULL_DAY certificate → delta = 0, skip
+    if (fullDayDates.has(entryDateISO)) continue;
     
-    if (entry.clockIn && entry.lunchOut && entry.lunchIn && entry.clockOut) {
+    if (entry.clockIn) {
       const worked = calcWorkedMinutes(entry);
+      
+      // PARTIAL certificate → reduce expected
+      const partialCert = getPartialCertificateForDate(entryDateISO, certificates);
+      
       if (holiday) {
         balanceMinutes += worked;
+      } else if (partialCert) {
+        const certMinutes = getPartialCertificateMinutes(partialCert);
+        const adjustedExpected = Math.max(0, expectedPerDay - certMinutes);
+        balanceMinutes += worked - adjustedExpected;
       } else {
         balanceMinutes += worked - expectedPerDay;
       }

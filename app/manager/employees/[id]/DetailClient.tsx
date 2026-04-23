@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { clsx } from "clsx";
 import {
   TrendingUp, TrendingDown, Plus, Minus, Edit2, Check, X, ArrowLeft, ChevronLeft, ChevronRight, Trash2,
+  FileText,
 } from "lucide-react";
 import TimeInput from "@/components/TimeInput";
 import Link from "next/link";
@@ -20,6 +21,7 @@ interface Entry {
   rawClockIn: string | null; rawLunchOut: string | null;
   rawLunchIn: string | null; rawClockOut: string | null;
   holiday?: { name: string } | null;
+  certificate?: { type: "PARTIAL"; startTime: string | null; endTime: string | null } | { type: "FULL_DAY"; startDate: string | null; endDate: string | null } | null;
 }
 
 interface Adjustment {
@@ -27,10 +29,19 @@ interface Adjustment {
   managerName: string; createdAt: string;
 }
 
+interface Certificate {
+  id: string; userId: string; createdById: string; createdByName: string;
+  type: "PARTIAL" | "FULL_DAY";
+  date: string | null; startDate: string | null; endDate: string | null;
+  startTime: string | null; endTime: string | null;
+  reason: string | null; createdAt: string;
+}
+
 interface Props {
   employee: { id: string; name: string; email: string; weeklyHours: number; overtimeMode: string };
   entries: Entry[];
   adjustments: Adjustment[];
+  certificates: Certificate[];
   balanceMinutes: number;
   balanceLabel: string;
   monthLabel: string;
@@ -43,7 +54,7 @@ interface Props {
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 export default function EmployeeDetailClient({
-  employee, entries, adjustments, balanceMinutes, balanceLabel, monthLabel, monthBalanceLabel, currentYear, currentMonth, expectedPerDay,
+  employee, entries, adjustments, certificates, balanceMinutes, balanceLabel, monthLabel, monthBalanceLabel, currentYear, currentMonth, expectedPerDay,
 }: Props) {
   const router = useRouter();
   const { theme } = useTheme();
@@ -52,11 +63,20 @@ export default function EmployeeDetailClient({
   const [adjHours, setAdjHours] = useState("");
   const [adjMinutes, setAdjMinutes] = useState("");
   const [adjReason, setAdjReason] = useState("");
-  const [adjType, setAdjType] = useState<"add" | "remove">("add");
+  const [adjType, setAdjType] = useState<"add" | "remove" | "certificate">("add");
   const [loading, setLoading] = useState(false);
   const [editEntry, setEditEntry] = useState<Entry | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // Certificate modal fields
+  const [certSubType, setCertSubType] = useState<"PARTIAL" | "FULL_DAY">("PARTIAL");
+  const [certDate, setCertDate] = useState("");
+  const [certStartTime, setCertStartTime] = useState("");
+  const [certEndTime, setCertEndTime] = useState("");
+  const [certStartDate, setCertStartDate] = useState("");
+  const [certEndDate, setCertEndDate] = useState("");
+  const [certReason, setCertReason] = useState("");
 
   // states for edit/delete adjustments
   const [showDeleteAdjModal, setShowDeleteAdjModal] = useState(false);
@@ -82,6 +102,21 @@ export default function EmployeeDetailClient({
     overtimeMode: employee.overtimeMode as "HOUR_BANK" | "OVERTIME",
   });
   const [savingEmp, setSavingEmp] = useState(false);
+
+  // Certificate edit/delete states
+  const [showDeleteCertModal, setShowDeleteCertModal] = useState(false);
+  const [deletingCert, setDeletingCert] = useState(false);
+  const [selectedCert, setSelectedCert] = useState<Certificate | null>(null);
+  const [showEditCertModal, setShowEditCertModal] = useState(false);
+  const [editingCert, setEditingCert] = useState<Certificate | null>(null);
+  const [editCertSubType, setEditCertSubType] = useState<"PARTIAL" | "FULL_DAY">("PARTIAL");
+  const [editCertDate, setEditCertDate] = useState("");
+  const [editCertStartTime, setEditCertStartTime] = useState("");
+  const [editCertEndTime, setEditCertEndTime] = useState("");
+  const [editCertStartDate, setEditCertStartDate] = useState("");
+  const [editCertEndDate, setEditCertEndDate] = useState("");
+  const [editCertReason, setEditCertReason] = useState("");
+  const [savingCert, setSavingCert] = useState(false);
 
   function goToMonth(year: number, month: number) {
     router.push(`/manager/employees/${employee.id}?year=${year}&month=${month}`);
@@ -118,6 +153,46 @@ export default function EmployeeDetailClient({
   const positive = balanceMinutes >= 0;
 
   async function handleAdjustment() {
+    if (adjType === "certificate") {
+      // Handle certificate creation
+      setLoading(true);
+      try {
+        const payload: any = { userId: employee.id };
+        if (certSubType === "PARTIAL") {
+          if (!certDate || !certStartTime || !certEndTime) {
+            toast("Preencha data e horários", "error"); setLoading(false); return;
+          }
+          payload.type = "PARTIAL";
+          payload.date = certDate;
+          payload.startTime = certStartTime;
+          payload.endTime = certEndTime;
+          payload.reason = certReason || undefined;
+        } else {
+          if (!certStartDate || !certEndDate) {
+            toast("Preencha as datas", "error"); setLoading(false); return;
+          }
+          payload.type = "FULL_DAY";
+          payload.startDate = certStartDate;
+          payload.endDate = certEndDate;
+          payload.reason = certReason || undefined;
+        }
+
+        const res = await fetch("/api/medical-certificates", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) { toast(data.error || "Erro ao registrar atestado", "error"); return; }
+        toast("Atestado registrado!", "success");
+        setShowAdjModal(false);
+        resetCertFields();
+        router.refresh();
+      } catch { toast("Erro de conexão", "error"); }
+      finally { setLoading(false); }
+      return;
+    }
+
     const hours = parseInt(adjHours) || 0;
     const mins = parseInt(adjMinutes) || 0;
     const totalMinutes = hours * 60 + mins;
@@ -137,6 +212,12 @@ export default function EmployeeDetailClient({
       router.refresh();
     } catch { toast("Erro de conexão", "error"); }
     finally { setLoading(false); }
+  }
+
+  function resetCertFields() {
+    setCertDate(""); setCertStartTime(""); setCertEndTime("");
+    setCertStartDate(""); setCertEndDate(""); setCertReason("");
+    setCertSubType("PARTIAL");
   }
 
   function openEditEntry(entry: Entry) {
@@ -268,6 +349,102 @@ export default function EmployeeDetailClient({
     finally { setSavingEmp(false); }
   }
 
+  // Certificate edit/delete handlers
+  function openEditCert(cert: Certificate) {
+    setEditingCert(cert);
+    setEditCertSubType(cert.type);
+    if (cert.type === "PARTIAL") {
+      setEditCertDate(cert.date?.split("T")[0] || "");
+      setEditCertStartTime(cert.startTime || "");
+      setEditCertEndTime(cert.endTime || "");
+    } else {
+      setEditCertStartDate(cert.startDate?.split("T")[0] || "");
+      setEditCertEndDate(cert.endDate?.split("T")[0] || "");
+    }
+    setEditCertReason(cert.reason || "");
+    setShowEditCertModal(true);
+  }
+
+  async function handleEditCert() {
+    if (!editingCert) return;
+    setSavingCert(true);
+    try {
+      const payload: any = {};
+      if (editCertSubType === "PARTIAL") {
+        if (!editCertDate || !editCertStartTime || !editCertEndTime) {
+          toast("Preencha data e horários", "error"); setSavingCert(false); return;
+        }
+        payload.type = "PARTIAL";
+        payload.date = editCertDate;
+        payload.startTime = editCertStartTime;
+        payload.endTime = editCertEndTime;
+        payload.reason = editCertReason || undefined;
+      } else {
+        if (!editCertStartDate || !editCertEndDate) {
+          toast("Preencha as datas", "error"); setSavingCert(false); return;
+        }
+        payload.type = "FULL_DAY";
+        payload.startDate = editCertStartDate;
+        payload.endDate = editCertEndDate;
+        payload.reason = editCertReason || undefined;
+      }
+
+      const res = await fetch(`/api/medical-certificates/${editingCert.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) { toast(data.error || "Erro ao editar atestado", "error"); return; }
+      toast("Atestado editado!", "success");
+      setShowEditCertModal(false);
+      setEditingCert(null);
+      router.refresh();
+    } catch { toast("Erro de conexão", "error"); }
+    finally { setSavingCert(false); }
+  }
+
+  function openDeleteCert(cert: Certificate) {
+    setSelectedCert(cert);
+    setShowDeleteCertModal(true);
+  }
+
+  async function handleDeleteCert() {
+    if (!selectedCert) return;
+    setDeletingCert(true);
+    try {
+      const res = await fetch(`/api/medical-certificates/${selectedCert.id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) { toast(data.error || "Erro ao remover atestado", "error"); return; }
+      toast("Atestado removido!", "success");
+      setShowDeleteCertModal(false);
+      setSelectedCert(null);
+      router.refresh();
+    } catch { toast("Erro de conexão", "error"); }
+    finally { setDeletingCert(false); }
+  }
+
+  function formatCertLabel(cert: Certificate): string {
+    if (cert.type === "PARTIAL") {
+      return `Atestado ${cert.startTime}–${cert.endTime}`;
+    }
+    const start = cert.startDate?.split("T")[0] || "";
+    const end = cert.endDate?.split("T")[0] || "";
+    if (start === end) {
+      const [y, m, d] = start.split("-");
+      return `Atestado ${d}/${m}`;
+    }
+    const [, sm, sd] = start.split("-");
+    const [, em, ed] = end.split("-");
+    return `Atestado ${sd}/${sm} a ${ed}/${em}`;
+  }
+
+  // Merge adjustments and certificates for the tab
+  const adjustmentsAndCerts = [
+    ...adjustments.map(a => ({ kind: "adjustment" as const, ...a })),
+    ...certificates.map(c => ({ kind: "certificate" as const, ...c })),
+  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
       <div className="flex items-center gap-3">
@@ -329,7 +506,7 @@ export default function EmployeeDetailClient({
                 tab === t ? "bg-accent-subtle text-accent border-accent" : "text-2 hover:text-ink"
               )}
             >
-              {t === "entries" ? `Registros (${entries.length})` : `Ajustes (${adjustments.length})`}
+              {t === "entries" ? `Registros (${entries.length})` : `Ajustes (${adjustments.length + certificates.length})`}
             </button>
           ))}
         </div>
@@ -365,7 +542,7 @@ export default function EmployeeDetailClient({
                 <div className="flex items-center gap-3 relative z-10">
                   <div className="w-28 shrink-0 flex flex-col items-start justify-center">
                     <p className="text-[10px] text-3 uppercase mb-0.5">{WEEKDAYS[getDay(d)]}</p>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-syne font-bold" style={{ color: "var(--text)" }}>
                         {getDate(d).toString().padStart(2, "0")}/{(getMonth(d)+1).toString().padStart(2,"0")}
                       </p>
@@ -373,6 +550,12 @@ export default function EmployeeDetailClient({
                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-accent-subtle text-accent border border-accent">
                           <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
                           Feriado
+                        </span>
+                      )}
+                      {entry.certificate && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium" style={{ backgroundColor: "var(--surface-2)", color: "var(--text-2)", border: "1px solid var(--border)" }}>
+                          <FileText size={10} />
+                          {entry.certificate.type === "PARTIAL" ? `Atestado ${entry.certificate.startTime}–${entry.certificate.endTime}` : "Atestado"}
                         </span>
                       )}
                     </div>
@@ -414,9 +597,9 @@ export default function EmployeeDetailClient({
                   <div className="text-right shrink-0 min-w-[4.5rem] whitespace-nowrap">
                     <p className="font-syne text-sm font-bold" style={{ color: "var(--text)" }}>{formatMinutes(entry.workedMinutes)}</p>
                     {entry.clockOut !== "--:--" && (
-                      <p 
+                      <p
                         className={clsx("text-xs cursor-help", diff >= 0 ? (theme === "dark" ? "text-green-400" : "text-green-600") : (theme === "dark" ? "text-red-400" : "text-red-600"))}
-                        title={entry.holiday ? "Horas em feriado contam como extra" : undefined}
+                        title={entry.holiday ? "Horas em feriado contam como extra" : entry.certificate?.type === "FULL_DAY" ? "Dia coberto por atestado" : undefined}
                       >
                         {diff >= 0 ? "+" : ""}{formatMinutes(diff)}
                       </p>
@@ -447,87 +630,171 @@ export default function EmployeeDetailClient({
 
       {tab === "adjustments" && (
         <div className="space-y-2">
-          {adjustments.length === 0 && <div className="card text-center py-8 text-3">Nenhum ajuste registrado.</div>}
-          {adjustments.map((adj) => (
-            <div key={adj.id} className="card flex items-center gap-4">
-              <div className={clsx("w-9 h-9 rounded-xl flex items-center justify-center shrink-0", 
-                adj.minutes >= 0 ? (theme === "dark" ? "bg-green-500/15" : "bg-green-600/15") : (theme === "dark" ? "bg-red-500/15" : "bg-red-600/15")
-              )}>
-                {adj.minutes >= 0 ? <Plus size={16} className={theme === "dark" ? "text-green-400" : "text-green-600"} /> : <Minus size={16} className={theme === "dark" ? "text-red-400" : "text-red-600"} />}
-              </div>
-              <div className="flex-1">
-                <p className="text-sm" style={{ color: "var(--text)" }}>{adj.reason}</p>
-                <p className="text-xs text-3">por {adj.managerName} · {new Date(adj.createdAt).toLocaleDateString("pt-BR")}</p>
-              </div>
-              <p className={clsx("font-syne font-bold", adj.minutes >= 0 ? (theme === "dark" ? "text-green-400" : "text-green-600") : (theme === "dark" ? "text-red-400" : "text-red-600"))}>
-                {adj.minutes >= 0 ? "+" : ""}{formatMinutes(adj.minutes)}
-              </p>
-              <div className="flex gap-2 shrink-0">
-                <button
-                  onClick={() => openEditAdj(adj)}
-                  className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-                  title="Editar ajuste"
-                >
-                  <Edit2 size={15} />
-                </button>
-                <button
-                  onClick={() => openDeleteAdj(adj)}
-                  className="p-1 text-gray-400 hover:text-red-500 transition-colors"
-                  title="Remover ajuste"
-                >
-                  <Trash2 size={15} />
-                </button>
-              </div>
-            </div>
-          ))}
+          {adjustmentsAndCerts.length === 0 && <div className="card text-center py-8 text-3">Nenhum ajuste ou atestado registrado.</div>}
+          {adjustmentsAndCerts.map((item) => {
+            if (item.kind === "adjustment") {
+              return (
+                <div key={item.id} className="card flex items-center gap-4">
+                  <div className={clsx("w-9 h-9 rounded-xl flex items-center justify-center shrink-0", 
+                    item.minutes >= 0 ? (theme === "dark" ? "bg-green-500/15" : "bg-green-600/15") : (theme === "dark" ? "bg-red-500/15" : "bg-red-600/15")
+                  )}>
+                    {item.minutes >= 0 ? <Plus size={16} className={theme === "dark" ? "text-green-400" : "text-green-600"} /> : <Minus size={16} className={theme === "dark" ? "text-red-400" : "text-red-600"} />}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm" style={{ color: "var(--text)" }}>{item.reason}</p>
+                    <p className="text-xs text-3">por {item.managerName} · {new Date(item.createdAt).toLocaleDateString("pt-BR")}</p>
+                  </div>
+                  <p className={clsx("font-syne font-bold", item.minutes >= 0 ? (theme === "dark" ? "text-green-400" : "text-green-600") : (theme === "dark" ? "text-red-400" : "text-red-600"))}>
+                    {item.minutes >= 0 ? "+" : ""}{formatMinutes(item.minutes)}
+                  </p>
+                  <div className="flex gap-2 shrink-0">
+                    <button onClick={() => openEditAdj(item)} className="p-1 text-gray-400 hover:text-gray-600 transition-colors" title="Editar ajuste">
+                      <Edit2 size={15} />
+                    </button>
+                    <button onClick={() => openDeleteAdj(item)} className="p-1 text-gray-400 hover:text-red-500 transition-colors" title="Remover ajuste">
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </div>
+              );
+            } else {
+              // Certificate item
+              const cert = item as Certificate & { kind: "certificate" };
+              return (
+                <div key={cert.id} className="card flex items-center gap-4">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: "var(--surface-2)" }}>
+                    <FileText size={16} style={{ color: "var(--text-2)" }} />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium" style={{ backgroundColor: "var(--surface-2)", color: "var(--text-2)", border: "1px solid var(--border)" }}>
+                        <FileText size={9} />
+                        {formatCertLabel(cert)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-3 mt-1">
+                      por {cert.createdByName} · {new Date(cert.createdAt).toLocaleDateString("pt-BR")}
+                      {cert.reason && <> · {cert.reason}</>}
+                    </p>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <button onClick={() => openEditCert(cert)} className="p-1 text-gray-400 hover:text-gray-600 transition-colors" title="Editar atestado">
+                      <Edit2 size={15} />
+                    </button>
+                    <button onClick={() => openDeleteCert(cert)} className="p-1 text-gray-400 hover:text-red-500 transition-colors" title="Remover atestado">
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </div>
+              );
+            }
+          })}
         </div>
       )}
 
-      {/* Adjustment modal */}
+      {/* Adjustment / Certificate modal */}
       {showAdjModal && (
         <div className="fixed z-50" style={{ top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)" }}>
           <div className="w-full min-h-screen flex items-center justify-center p-4">
-            <div className="w-full max-w-sm bg-surface border border-base rounded-2xl p-6 animate-fade-in">
+            <div className="w-full max-w-sm bg-surface border border-base rounded-2xl p-6 animate-fade-in max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="font-syne font-bold text-lg">Ajustar Banco de Horas</h2>
-                <button onClick={() => setShowAdjModal(false)} className="text-3 hover:text-ink"><X size={20} /></button>
+                <button onClick={() => { setShowAdjModal(false); resetCertFields(); }} className="text-3 hover:text-ink"><X size={20} /></button>
               </div>
               <div className="space-y-4">
+                {/* Type selector: add / remove / certificate */}
                 <div className="flex gap-2">
-                  {(["add","remove"] as const).map((t) => (
+                  {(["add", "remove", "certificate"] as const).map((t) => (
                     <button key={t} onClick={() => setAdjType(t)}
                       className={clsx("flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all flex items-center justify-center gap-2",
                         adjType === t
                           ? t === "add"
                             ? theme === "dark" ? "bg-green-500/15 border-green-500/30 text-green-400" : "bg-green-600/15 border-green-600/30 text-green-600"
-                            : theme === "dark" ? "bg-red-500/15 border-red-500/30 text-red-400" : "bg-red-600/15 border-red-600/30 text-red-600"
+                            : t === "remove"
+                              ? theme === "dark" ? "bg-red-500/15 border-red-500/30 text-red-400" : "bg-red-600/15 border-red-600/30 text-red-600"
+                              : "bg-accent-subtle border-accent text-accent"
                           : "border-base text-2 hover:text-ink"
                       )}
                     >
-                      {t === "add" ? <><Plus size={14} /> Adicionar</> : <><Minus size={14} /> Descontar</>}
+                      {t === "add" ? <><Plus size={14} /> Adicionar</> : t === "remove" ? <><Minus size={14} /> Descontar</> : <><FileText size={14} /> Atestado</>}
                     </button>
                   ))}
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="label">Horas</label>
-                    <input className="input" type="number" min="0" value={adjHours}
-                      onChange={(e) => setAdjHours(e.target.value)} placeholder="ex: 2" />
-                  </div>
-                  <div>
-                    <label className="label">Minutos</label>
-                    <input className="input" type="number" min="0" max="59" value={adjMinutes}
-                      onChange={(e) => setAdjMinutes(e.target.value)} placeholder="ex: 30" />
-                  </div>
-                </div>
-                <div>
-                  <label className="label">Motivo</label>
-                  <textarea className="input resize-none" rows={3} value={adjReason}
-                    onChange={(e) => setAdjReason(e.target.value)} placeholder="Descreva o motivo do ajuste..." />
-                </div>
+
+                {adjType === "certificate" ? (
+                  <>
+                    {/* Certificate sub-type */}
+                    <div className="flex gap-2">
+                      {(["PARTIAL", "FULL_DAY"] as const).map((st) => (
+                        <button key={st} onClick={() => setCertSubType(st)}
+                          className={clsx("flex-1 py-2 rounded-xl text-sm font-medium border transition-all",
+                            certSubType === st ? "bg-accent-subtle border-accent text-accent" : "border-base text-2 hover:text-ink"
+                          )}
+                        >
+                          {st === "PARTIAL" ? "Período do dia" : "Dias completos"}
+                        </button>
+                      ))}
+                    </div>
+
+                    {certSubType === "PARTIAL" ? (
+                      <>
+                        <div>
+                          <label className="label">Data</label>
+                          <input type="date" className="input" value={certDate} onChange={(e) => setCertDate(e.target.value)} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="label">Início da Ausência</label>
+                            <input type="time" className="input" value={certStartTime} onChange={(e) => setCertStartTime(e.target.value)} />
+                          </div>
+                          <div>
+                            <label className="label">Fim da Ausência</label>
+                            <input type="time" className="input" value={certEndTime} onChange={(e) => setCertEndTime(e.target.value)} />
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="label">Data Início</label>
+                          <input type="date" className="input" value={certStartDate} onChange={(e) => setCertStartDate(e.target.value)} />
+                        </div>
+                        <div>
+                          <label className="label">Data Fim</label>
+                          <input type="date" className="input" value={certEndDate} onChange={(e) => setCertEndDate(e.target.value)} />
+                        </div>
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="label">Motivo (opcional)</label>
+                      <textarea className="input resize-none" rows={2} value={certReason} onChange={(e) => setCertReason(e.target.value)} placeholder="Descreva o motivo..." />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="label">Horas</label>
+                        <input className="input" type="number" min="0" value={adjHours}
+                          onChange={(e) => setAdjHours(e.target.value)} placeholder="ex: 2" />
+                      </div>
+                      <div>
+                        <label className="label">Minutos</label>
+                        <input className="input" type="number" min="0" max="59" value={adjMinutes}
+                          onChange={(e) => setAdjMinutes(e.target.value)} placeholder="ex: 30" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="label">Motivo</label>
+                      <textarea className="input resize-none" rows={3} value={adjReason}
+                        onChange={(e) => setAdjReason(e.target.value)} placeholder="Descreva o motivo do ajuste..." />
+                    </div>
+                  </>
+                )}
               </div>
               <div className="flex gap-3 mt-6">
-                <button onClick={() => setShowAdjModal(false)} className="btn-secondary flex-1">Cancelar</button>
+                <button onClick={() => { setShowAdjModal(false); resetCertFields(); }} className="btn-secondary flex-1">Cancelar</button>
                 <button onClick={handleAdjustment} disabled={loading} className="btn-primary flex-1">
                   {loading ? "Salvando..." : "Confirmar"}
                 </button>
@@ -635,6 +902,99 @@ export default function EmployeeDetailClient({
           </div>
         </div>
       )}
+
+      {/* Edit Certificate Modal */}
+      {showEditCertModal && (
+        <div className="fixed z-50" style={{ top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <div className="w-full min-h-screen flex items-center justify-center p-4">
+            <div className="w-full max-w-sm bg-surface border border-base rounded-2xl p-6 animate-fade-in max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="font-syne font-bold text-lg" style={{ color: "var(--text)" }}>Editar Atestado</h2>
+                <button onClick={() => setShowEditCertModal(false)} className="text-3 hover:text-ink"><X size={20} /></button>
+              </div>
+              <div className="space-y-4">
+                <div className="flex gap-2">
+                  {(["PARTIAL", "FULL_DAY"] as const).map((st) => (
+                    <button key={st} onClick={() => setEditCertSubType(st)}
+                      className={clsx("flex-1 py-2 rounded-xl text-sm font-medium border transition-all",
+                        editCertSubType === st ? "bg-accent-subtle border-accent text-accent" : "border-base text-2 hover:text-ink"
+                      )}
+                    >
+                      {st === "PARTIAL" ? "Período do dia" : "Dias completos"}
+                    </button>
+                  ))}
+                </div>
+
+                {editCertSubType === "PARTIAL" ? (
+                  <>
+                    <div>
+                      <label className="label">Data</label>
+                      <input type="date" className="input" value={editCertDate} onChange={(e) => setEditCertDate(e.target.value)} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="label">Início da Ausência</label>
+                        <input type="time" className="input" value={editCertStartTime} onChange={(e) => setEditCertStartTime(e.target.value)} />
+                      </div>
+                      <div>
+                        <label className="label">Fim da Ausência</label>
+                        <input type="time" className="input" value={editCertEndTime} onChange={(e) => setEditCertEndTime(e.target.value)} />
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="label">Data Início</label>
+                      <input type="date" className="input" value={editCertStartDate} onChange={(e) => setEditCertStartDate(e.target.value)} />
+                    </div>
+                    <div>
+                      <label className="label">Data Fim</label>
+                      <input type="date" className="input" value={editCertEndDate} onChange={(e) => setEditCertEndDate(e.target.value)} />
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <label className="label">Motivo (opcional)</label>
+                  <textarea className="input resize-none" rows={2} value={editCertReason} onChange={(e) => setEditCertReason(e.target.value)} placeholder="Descreva o motivo..." />
+                </div>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button onClick={() => setShowEditCertModal(false)} className="btn-secondary flex-1">Cancelar</button>
+                <button onClick={handleEditCert} disabled={savingCert} className="btn-primary flex-1">
+                  {savingCert ? "Salvando..." : "Salvar alterações"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Certificate Modal */}
+      {showDeleteCertModal && (
+        <div className="fixed z-50" style={{ top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <div className="w-full min-h-screen flex items-center justify-center p-4">
+            <div className="w-full max-w-sm bg-surface border border-base rounded-2xl p-6 animate-fade-in">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="font-syne font-bold text-lg" style={{ color: "var(--text)" }}>Confirmar exclusão</h2>
+                <button onClick={() => setShowDeleteCertModal(false)} className="text-3 hover:text-ink"><X size={20} /></button>
+              </div>
+              <p className="text-sm mb-4" style={{ color: "var(--text-2)" }}>
+                Tem certeza que deseja remover este atestado? Esta ação não pode ser desfeita.
+              </p>
+              <div className="flex gap-3 mt-6">
+                <button onClick={() => setShowDeleteCertModal(false)} className="btn-secondary flex-1">Cancelar</button>
+                <button onClick={handleDeleteCert} disabled={deletingCert} 
+                  className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-red-500 text-white hover:bg-red-600 transition-all disabled:opacity-50">
+                  {deletingCert ? "Excluindo..." : "Remover"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showEditEmpModal && (
         <div className="fixed z-50" style={{ top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)" }}>
           <div className="w-full h-full flex items-center justify-center p-4">
