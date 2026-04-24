@@ -7,6 +7,8 @@ import {
   TrendingUp, TrendingDown, Plus, Minus, Edit2, Check, X, ArrowLeft, ChevronLeft, ChevronRight, Trash2,
   FileText,
 } from "lucide-react";
+import CertificateBadge from "@/components/CertificateBadge";
+import HolidayBadge from "@/components/HolidayBadge";
 import TimeInput from "@/components/TimeInput";
 import Link from "next/link";
 import { toast } from "@/components/Toaster";
@@ -537,7 +539,20 @@ export default function EmployeeDetailClient({
             return (
               <div key={entry.id} className="card relative overflow-hidden" style={entry.holiday ? { backgroundColor: "var(--accent-subtle)", borderColor: "var(--accent-border)" } : {}}>
                 {entry.holiday && (
-                  <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: "repeating-linear-gradient(45deg, var(--accent), var(--accent) 10px, transparent 10px, transparent 20px)" }} />
+                  <HolidayBadge
+                    variant="banner"
+                    name={entry.holiday.name}
+                    className={clsx("-mt-5 -mx-5 px-5 py-1.5", !entry.certificate ? "mb-4" : "")}
+                  />
+                )}
+                {entry.certificate && (
+                  <CertificateBadge
+                    variant="banner"
+                    className={clsx("-mx-5 mb-4 px-5 py-1.5", !entry.holiday && "-mt-5")}
+                    type={entry.certificate.type}
+                    startTime={"startTime" in entry.certificate ? entry.certificate.startTime : null}
+                    endTime={"endTime" in entry.certificate ? entry.certificate.endTime : null}
+                  />
                 )}
                 <div className="flex items-center gap-3 relative z-10">
                   <div className="w-28 shrink-0 flex flex-col items-start justify-center">
@@ -546,24 +561,7 @@ export default function EmployeeDetailClient({
                       <p className="font-syne font-bold" style={{ color: "var(--text)" }}>
                         {getDate(d).toString().padStart(2, "0")}/{(getMonth(d)+1).toString().padStart(2,"0")}
                       </p>
-                      {entry.holiday && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-accent-subtle text-accent border border-accent">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-                          Feriado
-                        </span>
-                      )}
-                      {entry.certificate && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium" style={{ backgroundColor: "var(--surface-2)", color: "var(--text-2)", border: "1px solid var(--border)" }}>
-                          <FileText size={10} />
-                          {entry.certificate.type === "PARTIAL" ? `Atestado ${entry.certificate.startTime}–${entry.certificate.endTime}` : "Atestado"}
-                        </span>
-                      )}
                     </div>
-                    {entry.holiday && (
-                      <p className="text-[9px] mt-1 leading-tight text-gray-500 line-clamp-1" title={entry.holiday.name}>
-                        {entry.holiday.name}
-                      </p>
-                    )}
                   </div>
                   {isEditing ? (
                     <div className="flex-1 grid grid-cols-4 gap-2">
@@ -667,10 +665,10 @@ export default function EmployeeDetailClient({
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium" style={{ backgroundColor: "var(--surface-2)", color: "var(--text-2)", border: "1px solid var(--border)" }}>
-                        <FileText size={9} />
-                        {formatCertLabel(cert)}
-                      </span>
+                      <CertificateBadge
+                        customLabel={formatCertLabel(cert)}
+                        style={{ backgroundColor: "var(--surface-2)", color: "var(--text-2)", border: "1px solid var(--border)" }}
+                      />
                     </div>
                     <p className="text-xs text-3 mt-1">
                       por {cert.createdByName} · {new Date(cert.createdAt).toLocaleDateString("pt-BR")}

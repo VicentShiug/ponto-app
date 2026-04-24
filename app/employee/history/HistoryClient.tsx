@@ -10,6 +10,8 @@ import { getDaySP, getDate, getYear, getMonth, startOfDay, parseDateFromAPI, toS
 import { toast } from "@/components/Toaster";
 import { EmptyState } from "@/components/EmptyState";
 import { clsx } from "clsx";
+import CertificateBadge from "@/components/CertificateBadge";
+import HolidayBadge from "@/components/HolidayBadge";
 
 interface DayData {
   id?: string; date: string; isWeekend: boolean; isFuture: boolean;
@@ -415,25 +417,26 @@ export default function HistoryClient({ days, weeks, monthLabel, totalWorkedLabe
                   border: `1px solid ${d.holiday ? "var(--accent-border)" : "var(--border)"}` 
                 }}>
                   {d.holiday && (
-                    <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: "repeating-linear-gradient(45deg, var(--accent), var(--accent) 10px, transparent 10px, transparent 20px)" }} />
+                    <HolidayBadge
+                      variant="banner"
+                      name={d.holiday.name}
+                      className={clsx("-mt-3 -mx-3 px-3 py-1.5", !hasCert ? "mb-3" : "")}
+                    />
+                  )}
+                  {hasCert && (
+                    <CertificateBadge
+                      variant="banner"
+                      className={clsx("-mx-3 mb-3 px-3 py-1.5", !d.holiday && "-mt-3")}
+                      type={d.certificate!.type}
+                      startTime={d.certificate!.startTime}
+                      endTime={d.certificate!.endTime}
+                    />
                   )}
                   <div className="flex items-center gap-3 relative z-10">
                     <div className="w-24 shrink-0 flex flex-col items-start justify-center">
                       <p className="text-[9px] uppercase mb-0.5" style={{ color: "var(--text-4)" }}>{WEEKDAYS[getDaySP(date)]}</p>
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-syne font-bold text-sm" style={{ color: "var(--text)" }}>{date.getUTCDate().toString().padStart(2,"0")}</p>
-                        {d.holiday && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-accent-subtle text-accent border border-accent">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-                            Feriado
-                          </span>
-                        )}
-                        {hasCert && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium" style={{ backgroundColor: "var(--surface-2)", color: "var(--text-2)", border: "1px solid var(--border)" }}>
-                            <FileText size={10} />
-                            {d.certificate!.type === "PARTIAL" ? `Atestado ${d.certificate!.startTime}–${d.certificate!.endTime}` : "Atestado"}
-                          </span>
-                        )}
                       </div>
                       {d.holiday && (
                         <p className="text-[8px] mt-1 leading-tight text-gray-500 line-clamp-1" title={d.holiday.name}>
@@ -540,10 +543,10 @@ export default function HistoryClient({ days, weeks, monthLabel, totalWorkedLabe
                     <FileText size={14} style={{ color: "var(--text-2)" }} />
                   </div>
                   <div className="flex-1">
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium" style={{ backgroundColor: "var(--surface)", color: "var(--text-2)", border: "1px solid var(--border)" }}>
-                      <FileText size={9} />
-                      {label}
-                    </span>
+                    <CertificateBadge
+                      customLabel={label}
+                      style={{ backgroundColor: "var(--surface)", border: "1px solid var(--border)" }}
+                    />
                     <p className="text-xs mt-1" style={{ color: "var(--text-3)" }}>
                       por {cert.createdByName} · {new Date(cert.createdAt).toLocaleDateString("pt-BR")}
                       {cert.reason && <> · {cert.reason}</>}

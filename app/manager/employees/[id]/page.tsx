@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import {
   calcWorkedMinutes, expectedDailyMinutes, formatMinutes, formatTime, calculateHourBankBalance
 } from "@/lib/hours";
-import { getDay, getYear, getMonth, startOfMonth, endOfMonth, isWithinInterval, isSameDay, parseDateFromAPI, formatDateISO } from "@/lib/dates";
+import { getDaySP, getYear, getMonth, startOfMonth, endOfMonth, isWithinInterval, isSameDay, parseDateFromAPI, formatDateISO } from "@/lib/dates";
 import { getHolidays, isHoliday } from "@/lib/holidays";
 import { getCertificatesForDateRange, getFullDayCertificateForDate, getPartialCertificateForDate, getPartialCertificateMinutes } from "@/lib/medical-certificates";
 import AppLayout from "@/components/AppLayout";
@@ -72,7 +72,7 @@ export default async function EmployeeDetailPage({
     const holiday = isHoliday(e.date, holidays);
     const dateISO = formatDateISO(e.date);
     
-    const dayOfWeek = getDay(e.date);
+    const dayOfWeek = getDaySP(e.date);
     const userWorkDays = employee.workDays || [1, 2, 3, 4, 5];
     const isWeekend = !userWorkDays.includes(dayOfWeek);
     
