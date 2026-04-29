@@ -166,6 +166,13 @@ export default function BankClient({ details, overtimeMode, adjustments }: Props
                                     Feriado
                                   </span>
                                 )}
+                                {outlier.isAtestado && (
+                                  <span className={clsx("inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border",
+                                    isDark ? "bg-gray-800 text-gray-300 border-gray-600" : "bg-gray-100 text-gray-600 border-gray-300"
+                                  )}>
+                                    {outlier.atestadoLabel || "Atestado"}
+                                  </span>
+                                )}
                               </div>
                               <span className={clsx("text-sm font-medium", getValueColor(outlier.deltaMinutes))}>
                                 {formatMinutes(outlier.deltaMinutes)}

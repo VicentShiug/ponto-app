@@ -4,8 +4,9 @@ import { prisma } from "@/lib/prisma";
 import {
   calcWorkedMinutes, expectedDailyMinutes, formatMinutes, formatTime, calculateHourBankBalance
 } from "@/lib/hours";
-import { getDay, getYear, getMonth, startOfMonth, endOfMonth, isWithinInterval, isSameDay, parseDateFromAPI } from "@/lib/dates";
+import { getDaySP, getYear, getMonth, startOfMonth, endOfMonth, isWithinInterval, isSameDay, parseDateFromAPI, formatDateISO } from "@/lib/dates";
 import { getHolidays, isHoliday } from "@/lib/holidays";
+import { getCertificatesForDateRange, getFullDayCertificateForDate, getPartialCertificateForDate, getPartialCertificateMinutes } from "@/lib/medical-certificates";
 import AppLayout from "@/components/AppLayout";
 import EmployeeDetailClient from "./DetailClient";
 
@@ -57,16 +58,36 @@ export default async function EmployeeDetailPage({
   const balanceMinutes = await calculateHourBankBalance(employee.id);
   const monthBalanceMinutes = await calculateHourBankBalance(employee.id, { start: monthFirstDay, end: monthLastDay });
 
+  // Fetch medical certificates for this month
+  const monthCertificates = await getCertificatesForDateRange(employee.id, monthFirstDay, monthLastDay);
+
+  // Also fetch all certificates for the adjustments tab
+  const allCertificates = await prisma.medicalCertificate.findMany({
+    where: { userId: employee.id },
+    include: { createdBy: { select: { name: true } } },
+    orderBy: { createdAt: "desc" },
+  });
+
   const serializedEntries = monthEntries.map((e) => {
     const holiday = isHoliday(e.date, holidays);
+    const dateISO = formatDateISO(e.date);
     
-    const dayOfWeek = getDay(e.date);
+    const dayOfWeek = getDaySP(e.date);
     const userWorkDays = employee.workDays || [1, 2, 3, 4, 5];
     const isWeekend = !userWorkDays.includes(dayOfWeek);
     
+    // Check for certificates
+    const fullDayCert = getFullDayCertificateForDate(dateISO, monthCertificates);
+    const partialCert = getPartialCertificateForDate(dateISO, monthCertificates);
+    
     let expectedForEntry = expectedPerDay;
-    if (holiday || isWeekend) {
+    if (fullDayCert) {
+      expectedForEntry = 0; // FULL_DAY → delta = 0
+    } else if (holiday || isWeekend) {
       expectedForEntry = 0;
+    } else if (partialCert) {
+      const certMinutes = getPartialCertificateMinutes(partialCert);
+      expectedForEntry = Math.max(0, expectedPerDay - certMinutes);
     }
 
     return {
@@ -76,13 +97,18 @@ export default async function EmployeeDetailPage({
       lunchOut: formatTime(e.lunchOut),
       lunchIn: formatTime(e.lunchIn),
       clockOut: formatTime(e.clockOut),
-      workedMinutes: calcWorkedMinutes(e),
+      workedMinutes: fullDayCert ? 0 : calcWorkedMinutes(e),
       expectedMinutes: expectedForEntry,
       rawClockIn: e.clockIn?.toISOString() ?? null,
       rawLunchOut: e.lunchOut?.toISOString() ?? null,
       rawLunchIn: e.lunchIn?.toISOString() ?? null,
       rawClockOut: e.clockOut?.toISOString() ?? null,
       holiday: holiday ? { name: holiday.name } : null,
+      certificate: fullDayCert
+        ? { type: "FULL_DAY" as const, startDate: fullDayCert.startDate?.toISOString() || null, endDate: fullDayCert.endDate?.toISOString() || null }
+        : partialCert
+          ? { type: "PARTIAL" as const, startTime: partialCert.startTime, endTime: partialCert.endTime }
+          : null,
     };
   });
 
@@ -92,6 +118,21 @@ export default async function EmployeeDetailPage({
     reason: a.reason,
     managerName: a.manager.name,
     createdAt: a.createdAt.toISOString(),
+  }));
+
+  const serializedCertificates = allCertificates.map((c) => ({
+    id: c.id,
+    userId: c.userId,
+    createdById: c.createdById,
+    createdByName: c.createdBy.name,
+    type: c.type as "PARTIAL" | "FULL_DAY",
+    date: c.date?.toISOString() || null,
+    startDate: c.startDate?.toISOString() || null,
+    endDate: c.endDate?.toISOString() || null,
+    startTime: c.startTime,
+    endTime: c.endTime,
+    reason: c.reason,
+    createdAt: c.createdAt.toISOString(),
   }));
 
   const monthLabel = new Date(year, month, 15).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
@@ -108,6 +149,7 @@ export default async function EmployeeDetailPage({
         }}
         entries={serializedEntries}
         adjustments={serializedAdjustments}
+        certificates={serializedCertificates}
         balanceMinutes={balanceMinutes}
         balanceLabel={formatMinutes(balanceMinutes)}
         monthLabel={monthLabel}

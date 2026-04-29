@@ -19,6 +19,11 @@ enum OvertimeMode {
   HOUR_BANK
 }
 
+enum CertificateType {
+  PARTIAL
+  FULL_DAY
+}
+
 model User {
   id            String       @id @default(cuid())
   name          String
@@ -50,6 +55,8 @@ model User {
   managedAdjustments   HourBankAdjustment[]  @relation("ManagerAdjustments")
   actorAuditLogs       AuditLog[]            @relation("ActorLogs")
   targetAuditLogs      AuditLog[]            @relation("TargetLogs")
+  certificates         MedicalCertificate[]  @relation("UserCertificates")
+  createdCertificates  MedicalCertificate[]  @relation("CreatedCertificates")
 
   @@map("users")
 }
@@ -98,4 +105,24 @@ model AuditLog {
   targetUser User? @relation("TargetLogs", fields: [targetUserId], references: [id])
 
   @@map("audit_logs")
+}
+
+model MedicalCertificate {
+  id          String          @id @default(cuid())
+  userId      String          @map("user_id")
+  createdById String          @map("created_by_id")
+  type        CertificateType
+  date        DateTime?       @db.Date
+  startDate   DateTime?       @map("start_date") @db.Date
+  endDate     DateTime?       @map("end_date") @db.Date
+  startTime   String?         @map("start_time")
+  endTime     String?         @map("end_time")
+  reason      String?
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  user      User @relation("UserCertificates", fields: [userId], references: [id])
+  createdBy User @relation("CreatedCertificates", fields: [createdById], references: [id])
+
+  @@map("medical_certificates")
 }
