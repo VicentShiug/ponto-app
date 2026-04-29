@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { calcWorkedMinutes, expectedDailyMinutes, formatMinutes, formatTime } from "@/lib/hours";
 import { getDaySP, getYear, getMonth, addDays, startOfMonth, endOfMonth, startOfDay, endOfDay, isAfter, isSameDay, isWithinInterval, formatDateISO, parseDateFromAPI, parseZonedStart, parseZonedEnd } from "@/lib/dates";
 import { getHolidays, isHoliday } from "@/lib/holidays";
+import { getCertificatesForDateRange, getFullDayCertificateForDate, getPartialCertificateForDate, getPartialCertificateMinutes } from "@/lib/medical-certificates";
 import AppLayout from "@/components/AppLayout";
 import HistoryClient from "./HistoryClient";
 
@@ -39,6 +40,16 @@ export default async function EmployeeHistory({
     orderBy: { date: "asc" },
   });
 
+  // Fetch medical certificates
+  const monthCertificates = await getCertificatesForDateRange(user.id, firstDay, lastDay);
+
+  // All certificates for the certificate list
+  const allCertificates = await prisma.medicalCertificate.findMany({
+    where: { userId: user.id },
+    include: { createdBy: { select: { name: true } } },
+    orderBy: { createdAt: "desc" },
+  });
+
   const userWorkDays = user.workDays || [1,2,3,4,5];
   const expectedPerDay = expectedDailyMinutes(user.weeklyHours, userWorkDays);
 
@@ -50,18 +61,38 @@ export default async function EmployeeHistory({
     );
     const dow = getDaySP(d);
     const isWeekend = !userWorkDays.includes(dow);
-    const workedMinutes = entry ? calcWorkedMinutes(entry) : 0;
+    
+    // Check for certificates
+    const fullDayCert = getFullDayCertificateForDate(dayISO, monthCertificates);
+    const partialCert = getPartialCertificateForDate(dayISO, monthCertificates);
+    
+    const workedMinutes = fullDayCert ? 0 : (entry ? calcWorkedMinutes(entry) : 0);
     
     // Check if it's a holiday
     const holiday = isHoliday(d, holidays);
     
-    // Compute diff: ignore unworked holidays
+    // Compute diff
     let diff = 0;
-    if (holiday) {
+    if (fullDayCert) {
+      diff = 0; // FULL_DAY certificate → neutral
+    } else if (holiday) {
       diff = workedMinutes;
     } else if (!isWeekend) {
-      diff = workedMinutes - expectedPerDay;
+      if (partialCert) {
+        const certMinutes = getPartialCertificateMinutes(partialCert);
+        const adjustedExpected = Math.max(0, expectedPerDay - certMinutes);
+        diff = workedMinutes - adjustedExpected;
+      } else {
+        diff = workedMinutes - expectedPerDay;
+      }
     }
+
+    // Certificate info for the day
+    const certificate = fullDayCert
+      ? { type: "FULL_DAY" as const, startDate: fullDayCert.startDate?.toISOString() || null, endDate: fullDayCert.endDate?.toISOString() || null, startTime: null, endTime: null }
+      : partialCert
+        ? { type: "PARTIAL" as const, startDate: null, endDate: null, startTime: partialCert.startTime, endTime: partialCert.endTime }
+        : null;
 
     days.push({
       id: entry?.id,
@@ -69,6 +100,7 @@ export default async function EmployeeHistory({
       isWeekend,
       isFuture: isAfter(startOfDay(d), now),
       holiday: holiday ? { name: holiday.name } : null,
+      certificate,
       clockIn: entry ? formatTime(entry.clockIn) : null,
       lunchOut: entry ? formatTime(entry.lunchOut) : null,
       lunchIn: entry ? formatTime(entry.lunchIn) : null,
@@ -76,11 +108,11 @@ export default async function EmployeeHistory({
       workedMinutes,
       diffMinutes: diff,
       status: isWeekend || holiday
-        ? "weekend" // We can treat holiday as weekend logically for the calendar or maybe create "holiday"
+        ? "weekend"
         : !entry || (!entry.clockIn && !entry.clockOut)
           ? isAfter(startOfDay(d), now)
           ? "future"
-          : "absent"
+          : fullDayCert ? "certificate" : "absent"
         : entry.clockIn && entry.clockOut
         ? "complete"
         : "incomplete",
@@ -97,7 +129,16 @@ export default async function EmployeeHistory({
       return isWithinInterval(dd, { start: weekStart, end: weekEnd }) && !d.isWeekend;
     });
     const workedMins = weekDays.reduce((s, d) => s + d.workedMinutes, 0);
-    const expectedMins = weekDays.length * expectedPerDay;
+    // Real expected sum for the week
+    const expectedMins = weekDays.reduce((s, d) => {
+      if (d.certificate?.type === "FULL_DAY" || d.holiday) return s;
+      if (d.certificate?.type === "PARTIAL") {
+        const certMins = getPartialCertificateMinutes({ startTime: d.certificate.startTime, endTime: d.certificate.endTime } as any);
+        return s + Math.max(0, expectedPerDay - certMins);
+      }
+      return s + expectedPerDay;
+    }, 0);
+    
     weeks.push({
       week: `Sem ${weekIdx}`,
       worked: Math.round((workedMins / 60) * 10) / 10,
@@ -107,11 +148,33 @@ export default async function EmployeeHistory({
     weekIdx++;
   }
 
-  const totalWorked = days.reduce((s, d) => s + d.workedMinutes, 0);
-  const workDays = days.filter((d) => !d.isWeekend && !d.isFuture).length;
-  const totalExpected = workDays * expectedPerDay;
+  const daysToCount = days.filter((d) => !d.isWeekend && !d.isFuture);
+  const totalWorked = daysToCount.reduce((s, d) => s + d.workedMinutes, 0);
+  const totalExpected = daysToCount.reduce((s, d) => {
+    if (d.certificate?.type === "FULL_DAY" || d.holiday) return s;
+    if (d.certificate?.type === "PARTIAL") {
+      const certMins = getPartialCertificateMinutes({ startTime: d.certificate.startTime, endTime: d.certificate.endTime } as any);
+      return s + Math.max(0, expectedPerDay - certMins);
+    }
+    return s + expectedPerDay;
+  }, 0);
 
   const monthLabel = new Date(year, month - 1, 15).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+
+  const serializedCertificates = allCertificates.map((c) => ({
+    id: c.id,
+    userId: c.userId,
+    createdById: c.createdById,
+    createdByName: c.createdBy.name,
+    type: c.type as "PARTIAL" | "FULL_DAY",
+    date: c.date?.toISOString() || null,
+    startDate: c.startDate?.toISOString() || null,
+    endDate: c.endDate?.toISOString() || null,
+    startTime: c.startTime,
+    endTime: c.endTime,
+    reason: c.reason,
+    createdAt: c.createdAt.toISOString(),
+  }));
 
   return (
     <AppLayout userName={user.name} userRole="EMPLOYEE" avatarUrl={user.avatarUrl ?? undefined}>
@@ -123,6 +186,8 @@ export default async function EmployeeHistory({
         totalExpectedLabel={formatMinutes(totalExpected)}
         balanceLabel={formatMinutes(totalWorked - totalExpected)}
         balanceMinutes={totalWorked - totalExpected}
+        certificates={serializedCertificates}
+        userId={user.id}
       />
     </AppLayout>
   );

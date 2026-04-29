@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Users, CheckCircle2, AlertCircle, XCircle, TrendingUp, TrendingDown, Search, ChevronRight } from "lucide-react";
+import { Users, CheckCircle2, AlertCircle, XCircle, TrendingUp, TrendingDown, Search, ChevronRight, FileText } from "lucide-react";
 import { formatMinutes } from "@/lib/hours";
 import { parseZonedStart } from "@/lib/dates";
 import { EmptyState } from "@/components/EmptyState";
@@ -10,11 +10,11 @@ import { EmptyState } from "@/components/EmptyState";
 interface Employee {
   id: string; name: string; email: string; weeklyHours: number;
   overtimeMode: string; balanceMinutes: number; balanceLabel: string;
-  todayStatus: "present" | "absent" | "incomplete";
+  todayStatus: "present" | "absent" | "incomplete" | "certificate";
 }
 interface Props {
   employees: Employee[];
-  summary: { present: number; incomplete: number; absent: number; total: number };
+  summary: { present: number; incomplete: number; absent: number; certificate: number; total: number };
   today: string;
   todayHoliday?: { name: string } | null;
 }
@@ -32,7 +32,7 @@ export default function ManagerDashboardClient({ employees, summary, today, toda
   });
 
   const d = parseZonedStart(today);
-  const statusLabels: Record<string, string> = { present: "Presente", incomplete: "Incompleto", absent: "Ausente" };
+  const statusLabels: Record<string, string> = { present: "Presente", incomplete: "Incompleto", absent: "Ausente", certificate: "Atestado" };
 
   return (
     <div className="space-y-5">
@@ -51,12 +51,13 @@ export default function ManagerDashboardClient({ employees, summary, today, toda
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         {[
           { label: "Total",       value: summary.total,      icon: <Users size={18} /> },
           { label: "Presentes",   value: summary.present,    icon: <CheckCircle2 size={18} /> },
           { label: "Incompletos", value: summary.incomplete, icon: <AlertCircle size={18} /> },
           { label: "Ausentes",    value: summary.absent,     icon: <XCircle size={18} /> },
+          { label: "Atestados",   value: summary.certificate, icon: <FileText size={18} /> },
         ].map((c) => (
           <div key={c.label} className="card flex items-center gap-4">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: "var(--surface-2)", color: "var(--text-2)" }}>
@@ -77,7 +78,7 @@ export default function ManagerDashboardClient({ employees, summary, today, toda
           <input className="input pl-9" placeholder="Buscar funcionário..." value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <div className="flex gap-1.5">
-          {["all","present","incomplete","absent"].map((s) => (
+          {["all","present","incomplete","absent","certificate"].map((s) => (
             <button
               key={s}
               onClick={() => setStatusFilter(s)}

@@ -3,6 +3,12 @@ import { getDay } from "date-fns";
 import { parseDateFromAPI } from "@/lib/dates";
 import { calcWorkedMinutes, expectedDailyMinutes } from "@/lib/hours";
 import { getHolidays, isHoliday } from "@/lib/holidays";
+import {
+  getCertificatesForDateRange,
+  getPartialCertificateForDate,
+  getPartialCertificateMinutes,
+  getFullDayDates,
+} from "@/lib/medical-certificates";
 
 /**
  * Calculates the dynamic hour bank balance for a user.
@@ -35,21 +41,38 @@ export async function calculateDynamicBalance(userId: string): Promise<number> {
   const holidayLists = await Promise.all(years.map(getHolidays));
   const holidays = holidayLists.flat();
 
+  // Fetch medical certificates
+  const allDates = entries.map(e => parseDateFromAPI(e.date.toISOString()));
+  const certStart = allDates.length ? new Date(Math.min(...allDates.map(d => d.getTime()))) : new Date();
+  const certEnd = allDates.length ? new Date(Math.max(...allDates.map(d => d.getTime()))) : new Date();
+  const certificates = await getCertificatesForDateRange(userId, certStart, certEnd);
+  const fullDayDates = getFullDayDates(certificates);
+
   for (const entry of entries) {
     const entryDate = parseDateFromAPI(entry.date.toISOString());
+    const entryDateISO = entryDate.toISOString().split("T")[0];
     const dayOfWeek = getDay(entryDate);
     const holiday = isHoliday(entryDate, holidays);
 
     // Check if it's a workday
     if (!userWorkDays.includes(dayOfWeek) && !holiday) continue;
 
-    // We only calculate delta if the entry is complete
-    // The business rule mentioned: "TimeEntry completo (entrada + almoço + volta + saída)"
-    // As implemented in getEntryStatus, complete means having at least clockIn and clockOut
-    if (entry.clockIn && entry.clockOut) {
+    // FULL_DAY certificate → delta = 0, skip
+    if (fullDayDates.has(entryDateISO)) continue;
+
+    // We only calculate delta if the entry has at least clockIn
+    if (entry.clockIn) {
       const worked = calcWorkedMinutes(entry);
+
+      // PARTIAL certificate → reduce expected
+      const partialCert = getPartialCertificateForDate(entryDateISO, certificates);
+
       if (holiday) {
         balanceMinutes += worked;
+      } else if (partialCert) {
+        const certMinutes = getPartialCertificateMinutes(partialCert);
+        const adjustedExpected = Math.max(0, expectedPerDay - certMinutes);
+        balanceMinutes += worked - adjustedExpected;
       } else {
         balanceMinutes += worked - expectedPerDay;
       }
@@ -68,6 +91,8 @@ export interface Outlier {
   dateLabel: string;
   deltaMinutes: number;
   isHoliday?: boolean;
+  isAtestado?: boolean;
+  atestadoLabel?: string;
 }
 
 export interface MonthlyBankData {
@@ -120,40 +145,81 @@ export async function getHourBankDetails(userId: string): Promise<HourBankDetail
   const holidayLists = await Promise.all(years.map(getHolidays));
   const holidays = holidayLists.flat();
 
+  // Fetch medical certificates
+  const allDates = entries.map(e => parseDateFromAPI(e.date.toISOString()));
+  const certStart = allDates.length ? new Date(Math.min(...allDates.map(d => d.getTime()))) : new Date();
+  const certEnd = allDates.length ? new Date(Math.max(...allDates.map(d => d.getTime()))) : new Date();
+  const certificates = await getCertificatesForDateRange(userId, certStart, certEnd);
+  const fullDayDates = getFullDayDates(certificates);
+
   for (const entry of entries) {
     const entryDate = parseDateFromAPI(entry.date.toISOString());
+    const entryDateISO = entryDate.toISOString().split("T")[0];
     const dayOfWeek = getDay(entryDate);
     const holiday = isHoliday(entryDate, holidays);
     
     if (!userWorkDays.includes(dayOfWeek) && !holiday) continue;
+
+    const year = entryDate.getFullYear();
+    const month = entryDate.getMonth();
+    const monthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
+
+    if (!monthlyMap[monthKey]) {
+      monthlyMap[monthKey] = {
+        monthKey,
+        monthLabel: `${MONTHS[month]} ${year}`,
+        balanceMinutes: 0,
+        daysWorked: 0,
+        outliers: []
+      };
+    }
+
+    // FULL_DAY certificate → delta = 0
+    if (fullDayDates.has(entryDateISO)) {
+      // Still count the day, but delta is 0
+      monthlyMap[monthKey].daysWorked += 1;
+      monthlyMap[monthKey].outliers.push({
+        dateLabel: `${String(entryDate.getDate()).padStart(2, "0")}/${String(month + 1).padStart(2, "0")}`,
+        deltaMinutes: 0,
+        isHoliday: !!holiday,
+        isAtestado: true,
+        atestadoLabel: "Atestado (dia inteiro)",
+      });
+      continue;
+    }
     
-    if (entry.clockIn && entry.lunchOut && entry.lunchIn && entry.clockOut) {
+    if (entry.clockIn) {
       const worked = calcWorkedMinutes(entry);
-      const delta = holiday ? worked : worked - expectedPerDay;
-      totalBalance += delta;
 
-      const year = entryDate.getFullYear();
-      const month = entryDate.getMonth();
-      const monthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
+      // PARTIAL certificate → reduce expected
+      const partialCert = getPartialCertificateForDate(entryDateISO, certificates);
+      let delta: number;
+      let isAtestado = false;
+      let atestadoLabel: string | undefined;
 
-      if (!monthlyMap[monthKey]) {
-        monthlyMap[monthKey] = {
-          monthKey,
-          monthLabel: `${MONTHS[month]} ${year}`,
-          balanceMinutes: 0,
-          daysWorked: 0,
-          outliers: []
-        };
+      if (holiday) {
+        delta = worked;
+      } else if (partialCert) {
+        const certMinutes = getPartialCertificateMinutes(partialCert);
+        const adjustedExpected = Math.max(0, expectedPerDay - certMinutes);
+        delta = worked - adjustedExpected;
+        isAtestado = true;
+        atestadoLabel = `Atestado ${partialCert.startTime}–${partialCert.endTime}`;
+      } else {
+        delta = worked - expectedPerDay;
       }
 
+      totalBalance += delta;
       monthlyMap[monthKey].balanceMinutes += delta;
       monthlyMap[monthKey].daysWorked += 1;
 
-      if (holiday || Math.abs(delta) > 30) {
+      if (holiday || isAtestado || Math.abs(delta) > 30) {
         monthlyMap[monthKey].outliers.push({
           dateLabel: `${String(entryDate.getDate()).padStart(2, "0")}/${String(month + 1).padStart(2, "0")}`,
           deltaMinutes: delta,
-          isHoliday: !!holiday
+          isHoliday: !!holiday,
+          isAtestado,
+          atestadoLabel,
         });
       }
 

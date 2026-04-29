@@ -51,17 +51,37 @@ export default async function EmployeeDashboard() {
     else currentStep = 4;
   }
 
-  const recentEntries = entries.slice(0, 7).map((e) => ({
-    id: e.id,
-    date: e.date.toISOString().slice(0, 10),
-    clockIn: formatTime(e.clockIn),
-    lunchOut: formatTime(e.lunchOut),
-    lunchIn: formatTime(e.lunchIn),
-    clockOut: formatTime(e.clockOut),
-    workedMinutes: calcWorkedMinutes(e),
-    expectedMinutes: expectedPerDay,
-    holiday: isHoliday(e.date, holidays),
-  }));
+  // Fetch certificates for the last 90 days to cover recent entries
+  const { getCertificatesForDateRange, getFullDayCertificateForDate, getPartialCertificateForDate, getPartialCertificateMinutes } = await import("@/lib/medical-certificates");
+  const certificates = await getCertificatesForDateRange(user.id, ninetyDaysAgo, today);
+
+  const recentEntries = entries.slice(0, 7).map((e) => {
+    const dateISO = e.date.toISOString().split("T")[0];
+    const fullDayCert = getFullDayCertificateForDate(dateISO, certificates);
+    const partialCert = getPartialCertificateForDate(dateISO, certificates);
+    
+    let expectedForEntry = expectedPerDay;
+    if (fullDayCert) {
+      expectedForEntry = 0;
+    } else if (isHoliday(e.date, holidays) || !userWorkDays.includes(e.date.getUTCDay())) {
+      expectedForEntry = 0;
+    } else if (partialCert) {
+      const certMinutes = getPartialCertificateMinutes(partialCert);
+      expectedForEntry = Math.max(0, expectedPerDay - certMinutes);
+    }
+    
+    return {
+      id: e.id,
+      date: dateISO,
+      clockIn: formatTime(e.clockIn),
+      lunchOut: formatTime(e.lunchOut),
+      lunchIn: formatTime(e.lunchIn),
+      clockOut: formatTime(e.clockOut),
+      workedMinutes: fullDayCert ? 0 : calcWorkedMinutes(e),
+      expectedMinutes: expectedForEntry,
+      holiday: isHoliday(e.date, holidays),
+    };
+  });
 
   return (
     <AppLayout userName={user.name} userRole="EMPLOYEE" avatarUrl={user.avatarUrl ?? undefined}>

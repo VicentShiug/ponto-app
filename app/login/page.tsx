@@ -74,7 +74,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-center text-xs mt-6" style={{ color: "var(--text-4)" }}>
-          © {getYear(new Date())} PontoApp
+          © {getYear(new Date())} PontoApp - Guilherme Câmara
         </p>
       </div>
     </div>

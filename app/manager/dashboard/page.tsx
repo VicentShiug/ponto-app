@@ -9,6 +9,7 @@ import {
 } from "@/lib/hours";
 import { getDay, subDays, startOfDayInZone, isSameDay, formatDateISO, parseDateFromAPI, getYear } from "@/lib/dates";
 import { getHolidays, isHoliday } from "@/lib/holidays";
+import { getCertificatesForDateRange, getFullDayCertificateForDate, getPartialCertificateForDate } from "@/lib/medical-certificates";
 import AppLayout from "@/components/AppLayout";
 import ManagerDashboardClient from "./DashboardClient";
 
@@ -41,19 +42,25 @@ export default async function ManagerDashboard() {
     employees.map(async (emp) => {
       const expectedPerDay = expectedDailyMinutes(emp.weeklyHours);
 
-      const entries = await prisma.timeEntry.findMany({
-        where: { userId: emp.id, date: { gte: since90 } },
-      });
-
-      const balanceMinutes = await calculateHourBankBalance(emp.id);
+      const [entries, certificates, balanceMinutes] = await Promise.all([
+        prisma.timeEntry.findMany({
+          where: { userId: emp.id, date: { gte: since90 } },
+        }),
+        getCertificatesForDateRange(emp.id, today, today),
+        calculateHourBankBalance(emp.id)
+      ]);
 
       const todayEntry = entries.find(
         (e) => isSameDay(parseDateFromAPI(e.date.toISOString()), today)
       );
+      
+      const todayDateISO = today.toISOString().slice(0, 10);
+      const hasCertificate = getFullDayCertificateForDate(todayDateISO, certificates) || getPartialCertificateForDate(todayDateISO, certificates);
 
-      let todayStatus: "present" | "absent" | "incomplete" = "absent";
+      let todayStatus: "present" | "absent" | "incomplete" | "certificate" = "absent";
       if (todayEntry?.clockOut) todayStatus = "present";
       else if (todayEntry?.clockIn) todayStatus = "incomplete";
+      else if (hasCertificate) todayStatus = "certificate";
 
       return {
         id: emp.id,
@@ -71,12 +78,13 @@ export default async function ManagerDashboard() {
   const present = employeeData.filter((e) => e.todayStatus === "present").length;
   const incomplete = employeeData.filter((e) => e.todayStatus === "incomplete").length;
   const absent = employeeData.filter((e) => e.todayStatus === "absent").length;
+  const certificate = employeeData.filter((e) => e.todayStatus === "certificate").length;
 
   return (
     <AppLayout userName={manager.name} userRole="MANAGER" avatarUrl={manager.avatarUrl ?? undefined}>
       <ManagerDashboardClient
         employees={employeeData}
-        summary={{ present, incomplete, absent, total: employees.length }}
+        summary={{ present, incomplete, absent, certificate, total: employees.length }}
         today={today.toISOString().slice(0, 10)}
         todayHoliday={todayHoliday ? { name: todayHoliday.name } : null}
       />
