@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { clsx } from "clsx";
 import CertificateBadge from "@/components/CertificateBadge";
 import HolidayBadge from "@/components/HolidayBadge";
+import TimeEntryCard from "@/components/TimeEntryCard";
 
 interface DayData {
   id?: string; date: string; isWeekend: boolean; isFuture: boolean;
@@ -340,49 +341,53 @@ export default function HistoryClient({ days, weeks, monthLabel, totalWorkedLabe
       </div>
 
       {/* Calendário */}
-      <div className="card">
+      <div className="card overflow-hidden">
         <p className="text-[10px] uppercase tracking-widest mb-4" style={{ color: "var(--text-3)" }}>Calendário</p>
-        <div className="grid grid-cols-7 gap-1 mb-1">
-          {WEEKDAYS.map((d) => <div key={d} className="text-center text-[9px] uppercase font-medium py-1" style={{ color: "var(--text-4)" }}>{d}</div>)}
-        </div>
-        <div className="grid grid-cols-7 gap-1">
-          {Array.from({ length: firstDow }).map((_, i) => <div key={`e-${i}`} />)}
-          {days.map((d) => {
-            const date = parseDateFromAPI(d.date);
-            const cfg = STATUS_CONFIG[d.status] || STATUS_CONFIG.absent;
-            const hasCert = !!d.certificate;
-            return (
-              <div
-                key={d.date}
-                className="relative aspect-square rounded-lg flex flex-col items-center justify-center font-semibold overflow-hidden"
-                style={{ 
-                  backgroundColor: cfg.bg, 
-                  color: cfg.text, 
-                  border: `1px solid ${d.holiday ? 'var(--accent-border)' : hasCert ? 'var(--border-2)' : cfg.border}`,
-                  backgroundImage: d.holiday && d.status !== 'complete'
-                    ? "repeating-linear-gradient(45deg, transparent, transparent 8px, var(--accent-subtle) 8px, var(--accent-subtle) 16px)" 
-                    : d.holiday 
-                      ? "repeating-linear-gradient(45deg, transparent, transparent 8px, rgba(0,0,0,0.05) 8px, rgba(0,0,0,0.05) 16px)"
-                      : undefined
-                }}
-                title={d.status !== "weekend" && d.status !== "future" ? `${cfg.label} — ${formatMinutes(d.workedMinutes)}${d.holiday ? `\nFeriado: ${d.holiday.name}` : ""}${hasCert ? "\nAtestado" : ""}` : d.holiday ? `Feriado: ${d.holiday.name}` : undefined}
-              >
-                <span className="text-[11px] z-10 px-1 rounded backdrop-blur-sm" style={{ color: d.holiday ? "var(--accent)" : undefined }}>
-                  {date.getUTCDate()}
-                </span>
-                {d.holiday && (
-                  <span className="text-[6px] text-center w-full truncate px-0.5 z-10 mt-0.5 backdrop-blur-sm uppercase font-bold" style={{ color: "var(--accent)" }}>
-                    {d.holiday.name}
-                  </span>
-                )}
-                {hasCert && !d.holiday && (
-                  <span className="text-[6px] text-center w-full truncate px-0.5 z-10 mt-0.5 backdrop-blur-sm uppercase font-bold" style={{ color: "var(--text-2)" }}>
-                    Atestado
-                  </span>
-                )}
-              </div>
-            );
-          })}
+        <div className="overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0">
+          <div className="min-w-[280px]">
+            <div className="grid grid-cols-7 gap-1 mb-1">
+              {WEEKDAYS.map((d) => <div key={d} className="text-center text-[9px] uppercase font-medium py-1" style={{ color: "var(--text-4)" }}>{d}</div>)}
+            </div>
+            <div className="grid grid-cols-7 gap-1">
+              {Array.from({ length: firstDow }).map((_, i) => <div key={`e-${i}`} />)}
+              {days.map((d) => {
+                const date = parseDateFromAPI(d.date);
+                const cfg = STATUS_CONFIG[d.status] || STATUS_CONFIG.absent;
+                const hasCert = !!d.certificate;
+                return (
+                  <div
+                    key={d.date}
+                    className="relative aspect-square min-h-[44px] rounded-lg flex flex-col items-center justify-center font-semibold overflow-hidden"
+                    style={{ 
+                      backgroundColor: cfg.bg, 
+                      color: cfg.text, 
+                      border: `1px solid ${d.holiday ? 'var(--accent-border)' : hasCert ? 'var(--border-2)' : cfg.border}`,
+                      backgroundImage: d.holiday && d.status !== 'complete'
+                        ? "repeating-linear-gradient(45deg, transparent, transparent 8px, var(--accent-subtle) 8px, var(--accent-subtle) 16px)" 
+                        : d.holiday 
+                          ? "repeating-linear-gradient(45deg, transparent, transparent 8px, rgba(0,0,0,0.05) 8px, rgba(0,0,0,0.05) 16px)"
+                          : undefined
+                    }}
+                    title={d.status !== "weekend" && d.status !== "future" ? `${cfg.label} — ${formatMinutes(d.workedMinutes)}${d.holiday ? `\nFeriado: ${d.holiday.name}` : ""}${hasCert ? "\nAtestado" : ""}` : d.holiday ? `Feriado: ${d.holiday.name}` : undefined}
+                  >
+                    <span className="text-[11px] z-10 px-1 rounded backdrop-blur-sm" style={{ color: d.holiday ? "var(--accent)" : undefined }}>
+                      {date.getUTCDate()}
+                    </span>
+                    {d.holiday && (
+                      <span className="text-[7px] text-center w-full truncate px-0.5 z-10 mt-0.5 backdrop-blur-sm uppercase font-bold" style={{ color: "var(--accent)" }}>
+                        {d.holiday.name}
+                      </span>
+                    )}
+                    {hasCert && !d.holiday && (
+                      <span className="text-[7px] text-center w-full truncate px-0.5 z-10 mt-0.5 backdrop-blur-sm uppercase font-bold" style={{ color: "var(--text-2)" }}>
+                        Atestado
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
         <div className="flex flex-wrap gap-2 mt-4">
           {Object.entries(STATUS_CONFIG).filter(([k]) => k !== "future").map(([, cfg]) => (
@@ -411,105 +416,29 @@ export default function HistoryClient({ days, weeks, monthLabel, totalWorkedLabe
               const date = parseDateFromAPI(d.date);
               const isEditing = editingId === d.id;
               const hasCert = !!d.certificate;
+
               return (
-                <div key={d.date} className="rounded-xl p-3 relative overflow-hidden" style={{ 
-                  backgroundColor: d.holiday ? "var(--accent-subtle)" : "var(--surface-2)", 
-                  border: `1px solid ${d.holiday ? "var(--accent-border)" : "var(--border)"}` 
-                }}>
-                  {d.holiday && (
-                    <HolidayBadge
-                      variant="banner"
-                      name={d.holiday.name}
-                      className={clsx("-mt-3 -mx-3 px-3 py-1.5", !hasCert ? "mb-3" : "")}
-                    />
-                  )}
-                  {hasCert && (
-                    <CertificateBadge
-                      variant="banner"
-                      className={clsx("-mx-3 mb-3 px-3 py-1.5", !d.holiday && "-mt-3")}
-                      type={d.certificate!.type}
-                      startTime={d.certificate!.startTime}
-                      endTime={d.certificate!.endTime}
-                    />
-                  )}
-                  <div className="flex items-center gap-3 relative z-10">
-                    <div className="w-24 shrink-0 flex flex-col items-start justify-center">
-                      <p className="text-[9px] uppercase mb-0.5" style={{ color: "var(--text-4)" }}>{WEEKDAYS[getDaySP(date)]}</p>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-syne font-bold text-sm" style={{ color: "var(--text)" }}>{date.getUTCDate().toString().padStart(2,"0")}</p>
-                      </div>
-                      {d.holiday && (
-                        <p className="text-[8px] mt-1 leading-tight text-gray-500 line-clamp-1" title={d.holiday.name}>
-                          {d.holiday.name}
-                        </p>
-                      )}
-                    </div>
-                    {isEditing ? (
-                      <div className="flex-1 grid grid-cols-4 gap-1.5">
-                        {(["clockIn", "lunchOut", "lunchIn", "clockOut"] as const).map((field) => {
-                          const labels = {
-                            clockIn: "Entrada",
-                            lunchOut: "Saída Alm.",
-                            lunchIn: "Volta Alm.",
-                            clockOut: "Saída"
-                          };
-                          return (
-                            <TimeInput
-                              key={field}
-                              label={labels[field]}
-                              value={editForm[field]}
-                              onChange={(val) => setEditForm({ ...editForm, [field]: val })}
-                            />
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="flex-1 grid grid-cols-4 gap-2 text-center">
-                        {[d.clockIn, d.lunchOut, d.lunchIn, d.clockOut].map((t, i) => (
-                          <div key={i}>
-                            <p className="text-[10px] uppercase font-medium" style={{ color: "var(--text-3)" }}>{["Entrada","Almoço","Volta","Saída"][i]}</p>
-                            <p className="text-sm font-medium" style={{ color: "var(--text-2)" }}>{t ?? "--:--"}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {!isEditing && (
-                      <div className="text-right shrink-0 min-w-[4.5rem] whitespace-nowrap">
-                        <p className="font-syne text-sm font-bold" style={{ color: "var(--text)" }}>{formatMinutes(d.workedMinutes)}</p>
-                        {d.clockOut && d.clockOut !== "--:--" && (
-                          <p 
-                            className="text-[9px] cursor-help" 
-                            style={{ color: d.diffMinutes >= 0 ? "var(--accent)" : "var(--text-3)" }}
-                            title={d.holiday ? "Horas em feriado contam como extra" : hasCert && d.certificate!.type === "FULL_DAY" ? "Dia coberto por atestado" : undefined}
-                          >
-                            {d.diffMinutes >= 0 ? "+" : ""}{formatMinutes(d.diffMinutes)}
-                          </p>
-                        )}
-                      </div>
-                    )}
-                    <div className="flex gap-1 shrink-0">
-                      {isEditing ? (
-                        <>
-                          <button onClick={() => saveEdit(d)} disabled={saving} className="p-1.5 rounded-lg transition-colors" style={{ color: "var(--accent)" }}>
-                            {saving ? <span className="w-3 h-3 border border-t-transparent rounded-full animate-spin block" style={{ borderColor: "var(--accent)", borderTopColor: "transparent" }} /> : <Check size={13} />}
-                          </button>
-                          <button onClick={() => setEditingId(null)} className="p-1.5 rounded-lg transition-colors" style={{ color: "var(--text-3)" }}>
-                            <X size={13} />
-                          </button>
-                          <button onClick={() => deleteEntry(d)} disabled={saving} className="p-1.5 rounded-lg transition-colors" style={{ color: "#ef4444" }} title="Apagar registro inteiro">
-                            <Trash2 size={13} />
-                          </button>
-                        </>
-                      ) : (
-                        d.id && d.status !== "absent" && d.status !== "certificate" && (
-                          <button onClick={() => openEdit(d)} className="p-1.5 rounded-lg transition-colors" style={{ color: "var(--text-4)" }}>
-                            <Edit2 size={13} />
-                          </button>
-                        )
-                      )}
-                    </div>
-                  </div>
-                </div>
+                <TimeEntryCard
+                  key={d.date}
+                  date={date}
+                  holiday={d.holiday}
+                  certificate={d.certificate}
+                  clockIn={d.clockIn}
+                  lunchOut={d.lunchOut}
+                  lunchIn={d.lunchIn}
+                  clockOut={d.clockOut}
+                  workedMinutes={d.workedMinutes}
+                  diffMinutes={d.diffMinutes}
+                  diffTooltip={d.holiday ? "Horas em feriado contam como extra" : hasCert && d.certificate!.type === "FULL_DAY" ? "Dia coberto por atestado" : undefined}
+                  isEditing={isEditing}
+                  editForm={isEditing ? editForm : undefined}
+                  onEditFormChange={isEditing ? (field, val) => setEditForm({ ...editForm, [field]: val }) : undefined}
+                  saving={saving}
+                  onSave={() => saveEdit(d)}
+                  onCancel={() => setEditingId(null)}
+                  onDelete={() => deleteEntry(d)}
+                  onEdit={() => openEdit(d)}
+                />
               );
             });
           })()}

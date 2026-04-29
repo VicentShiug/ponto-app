@@ -8,6 +8,7 @@ import TimeInput from "@/components/TimeInput";
 import { formatMinutes } from "@/lib/hours";
 import { getDay, getDate, startOfDay, isSameDay, parseDateFromAPI } from "@/lib/dates";
 import { toast } from "@/components/Toaster";
+import TimeEntryCard from "@/components/TimeEntryCard";
 
 interface RecentEntry {
   id: string; date: string;
@@ -293,146 +294,33 @@ export default function EmployeeDashboardClient({
             const isToday = isSameDay(date, now);
             const isEditing = editingId === e.id;
 
+            let entrySuggestions: { lunchOut: string | null; lunchIn: string | null; clockOut: string | null } | undefined;
+            if (isToday) {
+              entrySuggestions = computeSuggestions(e);
+            }
+
             return (
-              <div
+              <TimeEntryCard
                 key={e.id}
-                className="rounded-xl p-3 relative overflow-hidden"
-                style={{
-                  backgroundColor: e.holiday ? "var(--accent-subtle)" : isToday ? "var(--accent-subtle)" : "var(--surface-2)",
-                  border: `1px solid ${e.holiday ? "var(--accent-border)" : isToday ? "var(--accent-border)" : "transparent"}`,
-                }}
-              >
-                {e.holiday && (
-                  <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: "repeating-linear-gradient(45deg, var(--accent), var(--accent) 10px, transparent 10px, transparent 20px)" }} />
-                )}
-                <div className="flex items-center gap-3 relative z-10">
-                  {/* Dia */}
-                  <div className="w-24 shrink-0 flex flex-col items-start justify-center">
-                    <p className="text-[9px] uppercase mb-0.5" style={{ color: "var(--text-4)" }}>{WEEKDAYS[getDay(date)]}</p>
-                    <div className="flex items-center gap-2">
-                       <p className="font-syne font-bold text-sm" style={{ color: "var(--text)" }}>
-                         {getDate(date).toString().padStart(2, "0")}
-                       </p>
-                       {e.holiday && (
-                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-accent-subtle text-accent border border-accent">
-                           <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-                           Feriado
-                         </span>
-                       )}
-                    </div>
-                    {e.holiday && (
-                      <p className="text-[8px] mt-1 leading-tight text-gray-500 line-clamp-1" title={e.holiday.name}>
-                        {e.holiday.name}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Horários: view ou edit */}
-                  {isEditing ? (
-                    <div className="flex-1 grid grid-cols-4 gap-1.5">
-                      {(["clockIn", "lunchOut", "lunchIn", "clockOut"] as const).map((field) => {
-                        const labels = {
-                          clockIn: "Entrada",
-                          lunchOut: "Almoço",
-                          lunchIn: "Volta",
-                          clockOut: "Saída"
-                        };
-                        return (
-                          <TimeInput
-                            key={field}
-                            label={labels[field]}
-                            value={editForm[field]}
-                            onChange={(val) => setEditForm({ ...editForm, [field]: val })}
-                          />
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="flex-1 grid grid-cols-4 gap-2 text-center">
-                      {[e.clockIn, e.lunchOut, e.lunchIn, e.clockOut].map((t, i) => {
-                        // Show suggestions only for today's entry
-                        let suggestion: string | null = null;
-                        if (isToday) {
-                          const entrySuggestions = computeSuggestions(e);
-                          suggestion = [null, entrySuggestions.lunchOut, entrySuggestions.lunchIn, entrySuggestions.clockOut][i];
-                        }
-                        const isActual = hasTime(t);
-                        const display = isActual ? t : suggestion;
-                        return (
-                          <div key={i}>
-                            <p className="text-[10px] uppercase font-medium" style={{ color: "var(--text-3)" }}>
-                              {["Entrada","Almoço","Volta","Saída"][i]}
-                            </p>
-                            <p className="text-sm font-medium" style={{ color: "var(--text-2)" }}>
-                              {display ? (
-                                isActual ? display : <span style={{ opacity: 0.4 }}>~{display}</span>
-                              ) : (
-                                t
-                              )}
-                            </p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {/* Saldo (só quando não editando) */}
-                  {!isEditing && (
-                    <div className="text-right shrink-0 min-w-[4.5rem] whitespace-nowrap">
-                      <p className="font-syne text-sm font-bold" style={{ color: "var(--text)" }}>
-                        {formatMinutes(e.workedMinutes)}
-                      </p>
-                      {e.clockOut !== "--:--" && (
-                        <p className="text-[9px]" style={{ color: diff >= 0 ? "var(--accent)" : "var(--text-3)" }}>
-                          {diff >= 0 ? "+" : ""}{formatMinutes(diff)}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Botões */}
-                  <div className="flex gap-1 shrink-0">
-                    {isEditing ? (
-                      <>
-                        <button
-                          onClick={() => saveEdit(e)}
-                          disabled={saving}
-                          className="p-1.5 rounded-lg transition-colors"
-                          style={{ color: "var(--accent)" }}
-                        >
-                          {saving
-                            ? <span className="w-3 h-3 border border-t-transparent rounded-full animate-spin block" style={{ borderColor: "var(--accent)", borderTopColor: "transparent" }} />
-                            : <Check size={13} />}
-                        </button>
-                        <button
-                          onClick={() => setEditingId(null)}
-                          className="p-1.5 rounded-lg transition-colors"
-                          style={{ color: "var(--text-3)" }}
-                        >
-                          <X size={13} />
-                        </button>
-                        <button
-                          onClick={() => deleteEntry(e)}
-                          disabled={saving}
-                          className="p-1.5 rounded-lg transition-colors"
-                          style={{ color: "#ef4444" }}
-                          title="Apagar registro inteiro"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        onClick={() => openEdit(e)}
-                        className="p-1.5 rounded-lg transition-colors"
-                        style={{ color: "var(--text-4)" }}
-                      >
-                        <Edit2 size={13} />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
+                date={date}
+                holiday={e.holiday}
+                isToday={isToday}
+                clockIn={e.clockIn}
+                lunchOut={e.lunchOut}
+                lunchIn={e.lunchIn}
+                clockOut={e.clockOut}
+                suggestions={entrySuggestions}
+                workedMinutes={e.workedMinutes}
+                diffMinutes={diff}
+                isEditing={isEditing}
+                editForm={isEditing ? editForm : undefined}
+                onEditFormChange={isEditing ? (field, val) => setEditForm({ ...editForm, [field]: val }) : undefined}
+                saving={saving}
+                onSave={() => saveEdit(e)}
+                onCancel={() => setEditingId(null)}
+                onDelete={() => deleteEntry(e)}
+                onEdit={() => openEdit(e)}
+              />
             );
           })}
         </div>
