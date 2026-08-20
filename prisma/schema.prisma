@@ -73,10 +73,25 @@ model TimeEntry {
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
 
-  user User @relation(fields: [userId], references: [id])
+  user         User             @relation(fields: [userId], references: [id])
+  extraEntries ExtraTimeEntry[]
 
   @@unique([userId, date])
   @@map("time_entries")
+}
+
+model ExtraTimeEntry {
+  id          String    @id @default(cuid())
+  timeEntryId String    @map("time_entry_id")
+  returnTime  DateTime  @map("return_time")
+  exitTime    DateTime? @map("exit_time")
+  order       Int
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  timeEntry TimeEntry @relation(fields: [timeEntryId], references: [id], onDelete: Cascade)
+
+  @@unique([timeEntryId, order])
+  @@map("extra_time_entries")
 }
 
 model HourBankAdjustment {

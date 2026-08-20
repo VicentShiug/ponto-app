@@ -41,6 +41,7 @@ export default async function EmployeeDetailPage({
   const monthEntries = await prisma.timeEntry.findMany({
     where: { userId: employee.id, date: { gte: monthFirstDay, lte: monthLastDay } },
     orderBy: { date: "desc" },
+    include: { extraEntries: { orderBy: { order: "asc" } } },
   });
 
   const allEntries = await prisma.timeEntry.findMany({
@@ -97,7 +98,7 @@ export default async function EmployeeDetailPage({
       lunchOut: formatTime(e.lunchOut),
       lunchIn: formatTime(e.lunchIn),
       clockOut: formatTime(e.clockOut),
-      workedMinutes: fullDayCert ? 0 : calcWorkedMinutes(e),
+      workedMinutes: fullDayCert ? 0 : calcWorkedMinutes(e, e.extraEntries),
       expectedMinutes: expectedForEntry,
       rawClockIn: e.clockIn?.toISOString() ?? null,
       rawLunchOut: e.lunchOut?.toISOString() ?? null,
@@ -109,6 +110,12 @@ export default async function EmployeeDetailPage({
         : partialCert
           ? { type: "PARTIAL" as const, startTime: partialCert.startTime, endTime: partialCert.endTime }
           : null,
+      extraEntries: e.extraEntries.map(ex => ({
+        id: ex.id,
+        returnTime: formatTime(ex.returnTime),
+        exitTime: formatTime(ex.exitTime),
+        order: ex.order,
+      })),
     };
   });
 

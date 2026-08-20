@@ -2,7 +2,7 @@
 
 import { useCallback, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { TrendingUp, TrendingDown, Clock, CalendarDays, Edit2, Check, X, Trash2 } from "lucide-react";
+import { TrendingUp, TrendingDown, Clock, CalendarDays, ChevronDown, ChevronUp } from "lucide-react";
 import ClockButton from "@/components/ClockButton";
 import TimeInput from "@/components/TimeInput";
 import { formatMinutes } from "@/lib/hours";
@@ -10,11 +10,19 @@ import { getDay, getDate, startOfDay, isSameDay, parseDateFromAPI } from "@/lib/
 import { toast } from "@/components/Toaster";
 import TimeEntryCard from "@/components/TimeEntryCard";
 
+interface ExtraEntry {
+  id: string;
+  returnTime: string;
+  exitTime: string | null;
+  order: number;
+}
+
 interface RecentEntry {
   id: string; date: string;
   clockIn: string; lunchOut: string; lunchIn: string; clockOut: string;
   workedMinutes: number; expectedMinutes: number;
   holiday?: { name: string } | null;
+  extraEntries: ExtraEntry[];
 }
 
 interface Journey {
@@ -28,7 +36,8 @@ interface Props {
   user: { name: string; weeklyHours: number; overtimeMode: string };
   todayEntryId: string | null;
   todayEntry: { clockIn: string; lunchOut: string; lunchIn: string; clockOut: string } | null;
-  currentStep: 0 | 1 | 2 | 3 | 4;
+  todayExtras: ExtraEntry[];
+  currentStep: 0 | 1 | 2 | 3 | 5 | 6;
   balanceMinutes: number;
   balanceLabel: string;
   recentEntries: RecentEntry[];
@@ -42,12 +51,13 @@ const WEEKDAYS = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
 interface EditForm { clockIn: string; lunchOut: string; lunchIn: string; clockOut: string; }
 
 export default function EmployeeDashboardClient({
-  user, todayEntryId, todayEntry, currentStep: initialStep,
+  user, todayEntryId, todayEntry, todayExtras, currentStep: initialStep,
   balanceMinutes, balanceLabel, recentEntries, expectedPerDay, todayHoliday, journey,
 }: Props) {
   const router = useRouter();
   const [step, setStep] = useState(initialStep);
   const [entryId, setEntryId] = useState(todayEntryId);
+  const [showTodayExtras, setShowTodayExtras] = useState(false);
 
   useEffect(() => {
     setStep(initialStep);
@@ -61,7 +71,6 @@ export default function EmployeeDashboardClient({
   const handleClockSuccess = useCallback((newId?: string) => {
     if (newId) setEntryId(newId);
     router.refresh();
-    setStep((s) => s < 4 ? (s + 1) as 0|1|2|3|4 : s);
   }, [router]);
 
   function openEdit(e: RecentEntry) {
@@ -275,6 +284,36 @@ export default function EmployeeDashboardClient({
           </div>
         )}
 
+        {/* Saídas extras do dia */}
+        {todayExtras.length > 0 && (
+          <div className="w-full mb-4 px-1">
+            <button
+              onClick={() => setShowTodayExtras(!showTodayExtras)}
+              className="flex items-center gap-1.5 text-xs font-medium transition-colors mx-auto"
+              style={{ color: "var(--text-3)" }}
+            >
+              {showTodayExtras ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              + {todayExtras.length} saída{todayExtras.length > 1 ? "s" : ""} extra{todayExtras.length > 1 ? "s" : ""}
+            </button>
+            {showTodayExtras && (
+              <div className="mt-2 space-y-1.5">
+                {todayExtras.map((ex) => (
+                  <div key={ex.id} className="grid grid-cols-2 gap-2 text-center rounded-lg py-1.5 px-2" style={{ backgroundColor: "var(--surface-2)" }}>
+                    <div>
+                      <p className="text-[10px] uppercase font-medium" style={{ color: "var(--text-3)" }}>Volta {ex.order}</p>
+                      <p className="text-sm font-medium" style={{ color: "var(--text-2)" }}>{ex.returnTime}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase font-medium" style={{ color: "var(--text-3)" }}>Saída {ex.order}</p>
+                      <p className="text-sm font-medium" style={{ color: "var(--text-2)" }}>{ex.exitTime ?? "--:--"}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         <ClockButton currentStep={step} entryId={entryId} onSuccess={handleClockSuccess} />
       </div>
 
@@ -309,6 +348,7 @@ export default function EmployeeDashboardClient({
                 lunchOut={e.lunchOut}
                 lunchIn={e.lunchIn}
                 clockOut={e.clockOut}
+                extraEntries={e.extraEntries}
                 suggestions={entrySuggestions}
                 workedMinutes={e.workedMinutes}
                 diffMinutes={diff}

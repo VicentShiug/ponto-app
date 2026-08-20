@@ -27,6 +27,7 @@ export async function calculateDynamicBalance(userId: string): Promise<number> {
 
   const entries = await prisma.timeEntry.findMany({
     where: { userId },
+    include: { extraEntries: { orderBy: { order: "asc" } } },
   });
 
   const adjustments = await prisma.hourBankAdjustment.findMany({
@@ -62,7 +63,7 @@ export async function calculateDynamicBalance(userId: string): Promise<number> {
 
     // We only calculate delta if the entry has at least clockIn
     if (entry.clockIn) {
-      const worked = calcWorkedMinutes(entry);
+      const worked = calcWorkedMinutes(entry, entry.extraEntries);
 
       // PARTIAL certificate → reduce expected
       const partialCert = getPartialCertificateForDate(entryDateISO, certificates);
@@ -122,6 +123,7 @@ export async function getHourBankDetails(userId: string): Promise<HourBankDetail
 
   const entries = await prisma.timeEntry.findMany({
     where: { userId },
+    include: { extraEntries: { orderBy: { order: "asc" } } },
     orderBy: { date: "asc" }
   });
 
@@ -189,7 +191,7 @@ export async function getHourBankDetails(userId: string): Promise<HourBankDetail
     }
     
     if (entry.clockIn) {
-      const worked = calcWorkedMinutes(entry);
+      const worked = calcWorkedMinutes(entry, entry.extraEntries);
 
       // PARTIAL certificate → reduce expected
       const partialCert = getPartialCertificateForDate(entryDateISO, certificates);

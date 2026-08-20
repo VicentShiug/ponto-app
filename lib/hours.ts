@@ -4,20 +4,33 @@ import { prisma } from "@/lib/prisma";
 import { parseDateFromAPI } from "@/lib/dates";
 import { getHolidays, isHoliday } from "@/lib/holidays";
 
-export function calcWorkedMinutes(entry: { clockIn?: Date | null; lunchOut?: Date | null; lunchIn?: Date | null; clockOut?: Date | null; }): number {
+export function calcWorkedMinutes(
+  entry: { clockIn?: Date | null; lunchOut?: Date | null; lunchIn?: Date | null; clockOut?: Date | null },
+  extras?: { returnTime: Date; exitTime: Date | null; order: number }[]
+): number {
   if (!entry.clockIn) return 0;
   let totalMin = 0;
 
   if (entry.clockOut && !entry.lunchOut && !entry.lunchIn) {
-    return differenceInMinutes(entry.clockOut, entry.clockIn);
+    totalMin = differenceInMinutes(entry.clockOut, entry.clockIn);
+  } else {
+    if (entry.lunchOut) {
+      totalMin += differenceInMinutes(entry.lunchOut, entry.clockIn);
+    }
+    if (entry.lunchIn && entry.clockOut) {
+      totalMin += differenceInMinutes(entry.clockOut, entry.lunchIn);
+    }
   }
 
-  if (entry.lunchOut) {
-    totalMin += differenceInMinutes(entry.lunchOut, entry.clockIn);
-  }
-
-  if (entry.lunchIn && entry.clockOut) {
-    totalMin += differenceInMinutes(entry.clockOut, entry.lunchIn);
+  // Somar períodos extras trabalhados: [returnTime → exitTime]
+  if (extras && extras.length > 0) {
+    const sorted = [...extras].sort((a, b) => a.order - b.order);
+    for (const extra of sorted) {
+      if (extra.exitTime) {
+        totalMin += differenceInMinutes(extra.exitTime, extra.returnTime);
+      }
+      // Se exitTime é null, o empregado ainda está trabalhando — não soma
+    }
   }
 
   return Math.max(0, totalMin);
@@ -111,6 +124,7 @@ export async function calculateHourBankBalance(
       userId,
       ...(dateFilter ? { date: dateFilter } : {})
     },
+    include: { extraEntries: { orderBy: { order: "asc" } } },
   });
 
   const adjustments = await prisma.hourBankAdjustment.findMany({
@@ -151,7 +165,7 @@ export async function calculateHourBankBalance(
     if (fullDayDates.has(entryDateISO)) continue;
     
     if (entry.clockIn) {
-      const worked = calcWorkedMinutes(entry);
+      const worked = calcWorkedMinutes(entry, entry.extraEntries);
       
       // PARTIAL certificate → reduce expected
       const partialCert = getPartialCertificateForDate(entryDateISO, certificates);

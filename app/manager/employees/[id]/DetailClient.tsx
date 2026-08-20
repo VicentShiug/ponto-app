@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { clsx } from "clsx";
 import {
   TrendingUp, TrendingDown, Plus, Minus, Edit2, Check, X, ArrowLeft, ChevronLeft, ChevronRight, Trash2,
-  FileText,
+  FileText, ChevronDown, ChevronUp,
 } from "lucide-react";
 import CertificateBadge from "@/components/CertificateBadge";
 import HolidayBadge from "@/components/HolidayBadge";
@@ -16,6 +16,20 @@ import { useTheme } from "@/components/ThemeProvider";
 import { formatMinutes } from "@/lib/hours";
 import { getDay, getDate, getMonth, parseDateFromAPI } from "@/lib/dates";
 
+interface ExtraEntryData {
+  id?: string;
+  returnTime: string;
+  exitTime: string | null;
+  order: number;
+}
+
+interface ExtraEditEntry {
+  id?: string;
+  returnTime: string;
+  exitTime: string;
+  order: number;
+}
+
 interface Entry {
   id: string; date: string;
   clockIn: string; lunchOut: string; lunchIn: string; clockOut: string;
@@ -24,6 +38,7 @@ interface Entry {
   rawLunchIn: string | null; rawClockOut: string | null;
   holiday?: { name: string } | null;
   certificate?: { type: "PARTIAL"; startTime: string | null; endTime: string | null } | { type: "FULL_DAY"; startDate: string | null; endDate: string | null } | null;
+  extraEntries: ExtraEntryData[];
 }
 
 interface Adjustment {
@@ -54,6 +69,38 @@ interface Props {
 }
 
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+
+function ExtraEntriesCollapsible({ extras, theme }: { extras: ExtraEntryData[]; theme: string }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="mt-2 relative z-10">
+      <button
+        onClick={() => setShow(!show)}
+        className="flex items-center gap-1 text-[10px] font-medium transition-colors"
+        style={{ color: "var(--text-3)" }}
+      >
+        {show ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+        + {extras.length} saída{extras.length > 1 ? "s" : ""} extra{extras.length > 1 ? "s" : ""}
+      </button>
+      {show && (
+        <div className="mt-1.5 space-y-1">
+          {extras.map((ex) => (
+            <div key={ex.order} className="grid grid-cols-2 gap-2 text-center rounded-lg py-1 px-2" style={{ backgroundColor: "var(--surface-2)" }}>
+              <div>
+                <p className="text-[9px] uppercase font-medium" style={{ color: "var(--text-4)" }}>Volta {ex.order}</p>
+                <p className="text-xs font-medium" style={{ color: "var(--text-2)" }}>{ex.returnTime}</p>
+              </div>
+              <div>
+                <p className="text-[9px] uppercase font-medium" style={{ color: "var(--text-4)" }}>Saída {ex.order}</p>
+                <p className="text-xs font-medium" style={{ color: "var(--text-2)" }}>{ex.exitTime ?? "--:--"}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function EmployeeDetailClient({
   employee, entries, adjustments, certificates, balanceMinutes, balanceLabel, monthLabel, monthBalanceLabel, currentYear, currentMonth, expectedPerDay,
@@ -140,6 +187,7 @@ export default function EmployeeDetailClient({
     }
   }
   const [editForm, setEditForm] = useState({ clockIn: "", lunchOut: "", lunchIn: "", clockOut: "" });
+  const [extraEditForm, setExtraEditForm] = useState<ExtraEditEntry[]>([]);
 
   useEffect(() => {
     if (showAdjModal) {
@@ -230,6 +278,12 @@ export default function EmployeeDetailClient({
       lunchIn: entry.rawLunchIn ? new Date(entry.rawLunchIn).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "",
       clockOut: entry.rawClockOut ? new Date(entry.rawClockOut).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "",
     });
+    setExtraEditForm((entry.extraEntries || []).map(ex => ({
+      id: ex.id,
+      returnTime: ex.returnTime && ex.returnTime !== "--:--" ? ex.returnTime : "",
+      exitTime: ex.exitTime && ex.exitTime !== "--:--" ? ex.exitTime : "",
+      order: ex.order,
+    })));
   }
 
   async function saveEditEntry() {
@@ -241,6 +295,12 @@ export default function EmployeeDetailClient({
       return `${date}T${time}:00-03:00`;
     }
     try {
+      const extraPayload = extraEditForm.map(ex => ({
+        id: ex.id,
+        returnTime: ex.returnTime ? `${date}T${ex.returnTime}:00-03:00` : null,
+        exitTime: ex.exitTime ? `${date}T${ex.exitTime}:00-03:00` : null,
+        order: ex.order,
+      }));
       const res = await fetch(`/api/manager/entries/${editEntry.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -249,6 +309,7 @@ export default function EmployeeDetailClient({
           lunchOut: buildDateTime(editForm.lunchOut),
           lunchIn: buildDateTime(editForm.lunchIn),
           clockOut: buildDateTime(editForm.clockOut),
+          extraEntries: extraPayload,
         }),
       });
       const data = await res.json();
@@ -620,6 +681,63 @@ export default function EmployeeDetailClient({
                     )}
                   </div>
                 </div>
+
+                {/* Extras display (not editing) */}
+                {!isEditing && entry.extraEntries && entry.extraEntries.length > 0 && (
+                  <ExtraEntriesCollapsible extras={entry.extraEntries} theme={theme} />
+                )}
+
+                {/* Extras edit */}
+                {isEditing && (
+                  <div className="mt-3 space-y-2 relative z-10">
+                    {extraEditForm.length > 0 && (
+                      <p className="text-[10px] uppercase font-medium" style={{ color: "var(--text-3)" }}>Saídas extras</p>
+                    )}
+                    {extraEditForm.map((ex, idx) => (
+                      <div key={idx} className="flex items-end gap-1.5">
+                        <div className="flex-1 grid grid-cols-2 gap-1.5">
+                          <TimeInput
+                            label={`Volta ${ex.order}`}
+                            value={ex.returnTime}
+                            onChange={(val) => {
+                              const updated = [...extraEditForm];
+                              updated[idx] = { ...updated[idx], returnTime: val };
+                              setExtraEditForm(updated);
+                            }}
+                          />
+                          <TimeInput
+                            label={`Saída ${ex.order}`}
+                            value={ex.exitTime}
+                            onChange={(val) => {
+                              const updated = [...extraEditForm];
+                              updated[idx] = { ...updated[idx], exitTime: val };
+                              setExtraEditForm(updated);
+                            }}
+                          />
+                        </div>
+                        <button
+                          onClick={() => {
+                            const updated = extraEditForm.filter((_, i) => i !== idx).map((e, i) => ({ ...e, order: i + 1 }));
+                            setExtraEditForm(updated);
+                          }}
+                          className="p-1.5 rounded-lg transition-colors mb-0.5"
+                          style={{ color: "#ef4444" }}
+                          title="Remover saída extra"
+                        >
+                          <Minus size={13} />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      onClick={() => setExtraEditForm([...extraEditForm, { returnTime: "", exitTime: "", order: extraEditForm.length + 1 }])}
+                      className="flex items-center gap-1 text-[10px] font-medium transition-colors"
+                      style={{ color: "var(--accent)" }}
+                    >
+                      <Plus size={12} />
+                      Adicionar saída extra
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}

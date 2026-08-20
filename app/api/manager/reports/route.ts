@@ -39,6 +39,7 @@ export async function GET(req: NextRequest) {
         const entries = await prisma.timeEntry.findMany({
           where: { userId: id, date: { gte: parsedStart, lte: parsedEnd } },
           orderBy: { date: "asc" },
+          include: { extraEntries: { orderBy: { order: "asc" } } },
         });
 
         // Fetch certificates
@@ -55,8 +56,9 @@ export async function GET(req: NextRequest) {
           const fullDayCert = getFullDayCertificateForDate(dateISO, certificates);
           const partialCert = getPartialCertificateForDate(dateISO, certificates);
 
-          const worked = fullDayCert ? 0 : calcWorkedMinutes(e);
+          const worked = fullDayCert ? 0 : calcWorkedMinutes(e, e.extraEntries);
           const has4 = e.clockIn && e.lunchOut && e.lunchIn && e.clockOut;
+          const extraCount = e.extraEntries.length;
 
           let diff = 0;
           let tipo = "";
@@ -90,6 +92,7 @@ export async function GET(req: NextRequest) {
             workedMinutes: worked,
             diff,
             tipo,
+            extraCount,
           };
         });
 

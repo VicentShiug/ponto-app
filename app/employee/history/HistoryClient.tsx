@@ -14,11 +14,19 @@ import CertificateBadge from "@/components/CertificateBadge";
 import HolidayBadge from "@/components/HolidayBadge";
 import TimeEntryCard from "@/components/TimeEntryCard";
 
+interface ExtraEntryData {
+  id?: string;
+  returnTime: string;
+  exitTime: string | null;
+  order: number;
+}
+
 interface DayData {
   id?: string; date: string; isWeekend: boolean; isFuture: boolean;
   holiday?: { name: string } | null;
   certificate?: { type: "PARTIAL" | "FULL_DAY"; startTime: string | null; endTime: string | null; startDate: string | null; endDate: string | null } | null;
   clockIn: string | null; lunchOut: string | null; lunchIn: string | null; clockOut: string | null;
+  extraEntries: ExtraEntryData[];
   workedMinutes: number; diffMinutes: number; status: string;
 }
 
@@ -62,6 +70,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 interface EditForm { clockIn: string; lunchOut: string; lunchIn: string; clockOut: string; }
+interface ExtraEditEntry { id?: string; returnTime: string; exitTime: string; order: number; }
 
 export default function HistoryClient({ days, weeks, monthLabel, totalWorkedLabel, totalExpectedLabel, balanceLabel, balanceMinutes, certificates, userId }: Props) {
   const router = useRouter();
@@ -69,6 +78,7 @@ export default function HistoryClient({ days, weeks, monthLabel, totalWorkedLabe
   const firstDow = days[0]?.date ? getDaySP(parseDateFromAPI(days[0].date)) : 0;
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<EditForm>({ clockIn: "", lunchOut: "", lunchIn: "", clockOut: "" });
+  const [extraEditForm, setExtraEditForm] = useState<ExtraEditEntry[]>([]);
   const [saving, setSaving] = useState(false);
 
   // Certificate modal states
@@ -131,6 +141,12 @@ export default function HistoryClient({ days, weeks, monthLabel, totalWorkedLabe
       lunchIn:  d.lunchIn  && d.lunchIn  !== "--:--" ? d.lunchIn  : "",
       clockOut: d.clockOut && d.clockOut !== "--:--" ? d.clockOut : "",
     });
+    setExtraEditForm((d.extraEntries || []).map(ex => ({
+      id: ex.id,
+      returnTime: ex.returnTime && ex.returnTime !== "--:--" ? ex.returnTime : "",
+      exitTime: ex.exitTime && ex.exitTime !== "--:--" ? ex.exitTime : "",
+      order: ex.order,
+    })));
   }
 
   async function saveEdit(d: DayData) {
@@ -139,10 +155,22 @@ export default function HistoryClient({ days, weeks, monthLabel, totalWorkedLabe
     const dateStr = d.date.split("T")[0];
     const toISO = (t: string) => t ? `${dateStr}T${t}:00-03:00` : null;
     try {
+      const extraPayload = extraEditForm.map(ex => ({
+        id: ex.id,
+        returnTime: ex.returnTime ? `${dateStr}T${ex.returnTime}:00-03:00` : null,
+        exitTime: ex.exitTime ? `${dateStr}T${ex.exitTime}:00-03:00` : null,
+        order: ex.order,
+      }));
       const res = await fetch(`/api/employee/entries/${d.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clockIn: toISO(editForm.clockIn), lunchOut: toISO(editForm.lunchOut), lunchIn: toISO(editForm.lunchIn), clockOut: toISO(editForm.clockOut) }),
+        body: JSON.stringify({
+          clockIn: toISO(editForm.clockIn),
+          lunchOut: toISO(editForm.lunchOut),
+          lunchIn: toISO(editForm.lunchIn),
+          clockOut: toISO(editForm.clockOut),
+          extraEntries: extraPayload,
+        }),
       });
       const data = await res.json();
       if (!res.ok) { toast(data.error || "Erro ao salvar", "error"); return; }
@@ -427,12 +455,26 @@ export default function HistoryClient({ days, weeks, monthLabel, totalWorkedLabe
                   lunchOut={d.lunchOut}
                   lunchIn={d.lunchIn}
                   clockOut={d.clockOut}
+                  extraEntries={d.extraEntries}
                   workedMinutes={d.workedMinutes}
                   diffMinutes={d.diffMinutes}
                   diffTooltip={d.holiday ? "Horas em feriado contam como extra" : hasCert && d.certificate!.type === "FULL_DAY" ? "Dia coberto por atestado" : undefined}
                   isEditing={isEditing}
                   editForm={isEditing ? editForm : undefined}
                   onEditFormChange={isEditing ? (field, val) => setEditForm({ ...editForm, [field]: val }) : undefined}
+                  extraEditForm={isEditing ? extraEditForm : undefined}
+                  onExtraEditFormChange={isEditing ? (idx, field, val) => {
+                    const updated = [...extraEditForm];
+                    updated[idx] = { ...updated[idx], [field]: val };
+                    setExtraEditForm(updated);
+                  } : undefined}
+                  onAddExtra={isEditing ? () => {
+                    setExtraEditForm([...extraEditForm, { returnTime: "", exitTime: "", order: extraEditForm.length + 1 }]);
+                  } : undefined}
+                  onRemoveExtra={isEditing ? (idx) => {
+                    const updated = extraEditForm.filter((_, i) => i !== idx).map((ex, i) => ({ ...ex, order: i + 1 }));
+                    setExtraEditForm(updated);
+                  } : undefined}
                   saving={saving}
                   onSave={() => saveEdit(d)}
                   onCancel={() => setEditingId(null)}

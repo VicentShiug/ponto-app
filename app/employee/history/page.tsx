@@ -38,6 +38,7 @@ export default async function EmployeeHistory({
   const entries = await prisma.timeEntry.findMany({
     where: { userId: user.id, date: { gte: firstDay, lte: lastDay } },
     orderBy: { date: "asc" },
+    include: { extraEntries: { orderBy: { order: "asc" } } },
   });
 
   // Fetch medical certificates
@@ -66,7 +67,7 @@ export default async function EmployeeHistory({
     const fullDayCert = getFullDayCertificateForDate(dayISO, monthCertificates);
     const partialCert = getPartialCertificateForDate(dayISO, monthCertificates);
     
-    const workedMinutes = fullDayCert ? 0 : (entry ? calcWorkedMinutes(entry) : 0);
+    const workedMinutes = fullDayCert ? 0 : (entry ? calcWorkedMinutes(entry, entry.extraEntries) : 0);
     
     // Check if it's a holiday
     const holiday = isHoliday(d, holidays);
@@ -105,6 +106,12 @@ export default async function EmployeeHistory({
       lunchOut: entry ? formatTime(entry.lunchOut) : null,
       lunchIn: entry ? formatTime(entry.lunchIn) : null,
       clockOut: entry ? formatTime(entry.clockOut) : null,
+      extraEntries: entry ? entry.extraEntries.map(ex => ({
+        id: ex.id,
+        returnTime: formatTime(ex.returnTime),
+        exitTime: formatTime(ex.exitTime),
+        order: ex.order,
+      })) : [],
       workedMinutes,
       diffMinutes: diff,
       status: isWeekend || holiday

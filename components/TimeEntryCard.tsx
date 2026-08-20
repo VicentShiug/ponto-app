@@ -1,4 +1,5 @@
-import { Edit2, Check, X, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { Edit2, Check, X, Trash2, ChevronDown, ChevronUp, Plus, Minus } from "lucide-react";
 import TimeInput from "@/components/TimeInput";
 import { formatMinutes } from "@/lib/hours";
 import { getDaySP, getDate } from "@/lib/dates";
@@ -7,6 +8,20 @@ import HolidayBadge from "@/components/HolidayBadge";
 import CertificateBadge from "@/components/CertificateBadge";
 
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+
+export interface ExtraEntryData {
+  id?: string;
+  returnTime: string;
+  exitTime: string | null;
+  order: number;
+}
+
+export interface ExtraEditEntry {
+  id?: string;
+  returnTime: string;
+  exitTime: string;
+  order: number;
+}
 
 export interface TimeEntryCardProps {
   date: Date;
@@ -24,6 +39,8 @@ export interface TimeEntryCardProps {
   lunchIn: string | null;
   clockOut: string | null;
   
+  extraEntries?: ExtraEntryData[];
+  
   // Sugestões para o dia atual (Dashboard)
   suggestions?: {
     lunchOut: string | null;
@@ -39,6 +56,12 @@ export interface TimeEntryCardProps {
   editForm?: { clockIn: string; lunchOut: string; lunchIn: string; clockOut: string; };
   onEditFormChange?: (field: "clockIn" | "lunchOut" | "lunchIn" | "clockOut", value: string) => void;
   
+  // Extra edit
+  extraEditForm?: ExtraEditEntry[];
+  onExtraEditFormChange?: (index: number, field: "returnTime" | "exitTime", value: string) => void;
+  onAddExtra?: () => void;
+  onRemoveExtra?: (index: number) => void;
+  
   saving?: boolean;
   
   onSave?: () => void;
@@ -53,12 +76,16 @@ function hasTime(t: string | undefined | null): boolean {
 
 export default function TimeEntryCard({
   date, holiday, certificate, isToday,
-  clockIn, lunchOut, lunchIn, clockOut, suggestions,
+  clockIn, lunchOut, lunchIn, clockOut, extraEntries, suggestions,
   workedMinutes, diffMinutes, diffTooltip,
-  isEditing, editForm, onEditFormChange, saving,
+  isEditing, editForm, onEditFormChange,
+  extraEditForm, onExtraEditFormChange, onAddExtra, onRemoveExtra,
+  saving,
   onSave, onCancel, onDelete, onEdit
 }: TimeEntryCardProps) {
   const hasCert = !!certificate;
+  const [showExtras, setShowExtras] = useState(false);
+  const extras = extraEntries || [];
   
   return (
     <div
@@ -69,7 +96,6 @@ export default function TimeEntryCard({
       }}
     >
       {/* Opcional: Gradient de fundo para feriados no Dashboard */}
-      {holiday && !certificate && isToday === undefined /* Only in Dashboard? No, History uses badges instead. Dashboard uses gradient. Let's align on History's Badge for both or keep both? Dashboard uses simple background gradient. Let's standardize on badges! */}
       {holiday && (
         <HolidayBadge
           variant="banner"
@@ -96,7 +122,6 @@ export default function TimeEntryCard({
               {getDate(date).toString().padStart(2, "0")}
             </p>
           </div>
-          {/* Se não estiver usando badges banner, usar fallback? Deixaremos as badges */}
         </div>
 
         {/* Horários: view ou edit */}
@@ -219,6 +244,81 @@ export default function TimeEntryCard({
           )}
         </div>
       </div>
+
+      {/* Saídas extras — colapsável (quando não editando) */}
+      {!isEditing && extras.length > 0 && (
+        <div className="mt-2 relative z-10">
+          <button
+            onClick={() => setShowExtras(!showExtras)}
+            className="flex items-center gap-1 text-[10px] font-medium transition-colors"
+            style={{ color: "var(--text-3)" }}
+          >
+            {showExtras ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            + {extras.length} saída{extras.length > 1 ? "s" : ""} extra{extras.length > 1 ? "s" : ""}
+          </button>
+          {showExtras && (
+            <div className="mt-1.5 space-y-1">
+              {extras.map((ex) => (
+                <div key={ex.order} className="grid grid-cols-2 gap-2 text-center rounded-lg py-1 px-2" style={{ backgroundColor: "var(--surface)" }}>
+                  <div>
+                    <p className="text-[9px] uppercase font-medium" style={{ color: "var(--text-4)" }}>Volta {ex.order}</p>
+                    <p className="text-xs font-medium" style={{ color: "var(--text-2)" }}>{ex.returnTime}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] uppercase font-medium" style={{ color: "var(--text-4)" }}>Saída {ex.order}</p>
+                    <p className="text-xs font-medium" style={{ color: "var(--text-2)" }}>{ex.exitTime ?? "--:--"}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Edição de extras */}
+      {isEditing && extraEditForm && onExtraEditFormChange && (
+        <div className="mt-3 space-y-2 relative z-10">
+          {extraEditForm.length > 0 && (
+            <p className="text-[10px] uppercase font-medium" style={{ color: "var(--text-3)" }}>Saídas extras</p>
+          )}
+          {extraEditForm.map((ex, idx) => (
+            <div key={idx} className="flex items-end gap-1.5">
+              <div className="flex-1 grid grid-cols-2 gap-1.5">
+                <TimeInput
+                  label={`Volta ${ex.order}`}
+                  value={ex.returnTime}
+                  onChange={(val) => onExtraEditFormChange(idx, "returnTime", val)}
+                />
+                <TimeInput
+                  label={`Saída ${ex.order}`}
+                  value={ex.exitTime}
+                  onChange={(val) => onExtraEditFormChange(idx, "exitTime", val)}
+                />
+              </div>
+              {onRemoveExtra && (
+                <button
+                  onClick={() => onRemoveExtra(idx)}
+                  className="p-1.5 rounded-lg transition-colors mb-0.5"
+                  style={{ color: "#ef4444" }}
+                  title="Remover saída extra"
+                >
+                  <Minus size={13} />
+                </button>
+              )}
+            </div>
+          ))}
+          {onAddExtra && (
+            <button
+              onClick={onAddExtra}
+              className="flex items-center gap-1 text-[10px] font-medium transition-colors"
+              style={{ color: "var(--accent)" }}
+            >
+              <Plus size={12} />
+              Adicionar saída extra
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

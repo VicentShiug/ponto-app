@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth";
 import { parseDate } from "@/lib/dates";
 
+interface ExtraColumn {
+  returnTime: string | null;
+  exitTime: string | null;
+  order: number;
+}
+
 interface ParsedRow {
   rowIndex: number;
   date: string;
@@ -9,6 +15,7 @@ interface ParsedRow {
   lunchOut: string | null;
   lunchIn: string | null;
   clockOut: string | null;
+  extras: ExtraColumn[];
   workedHours: number;
   description: string;
   isValid: boolean;
@@ -115,6 +122,21 @@ function parseCSV(content: string): ParsedRow[] {
     const workedHours = parseDecimal(columns[5]);
     const description = columns[8] || "";
 
+    // Parse extra columns: volta_extra_1, saida_extra_1, volta_extra_2, saida_extra_2, ...
+    // Starting at column index 9 (pairs of return/exit)
+    const extras: ExtraColumn[] = [];
+    let colIdx = 9;
+    let order = 1;
+    while (colIdx + 1 < columns.length) {
+      const retTime = parseTime(columns[colIdx]);
+      const extTime = parseTime(columns[colIdx + 1]);
+      if (retTime || extTime) {
+        extras.push({ returnTime: retTime, exitTime: extTime, order });
+        order++;
+      }
+      colIdx += 2;
+    }
+
     const hasAnyTime = clockIn || lunchOut || lunchIn || clockOut;
     const hasClockInAndOut = clockIn && clockOut;
     const isEmptyDay = !clockIn && !lunchOut && !lunchIn && !clockOut;
@@ -129,6 +151,7 @@ function parseCSV(content: string): ParsedRow[] {
         lunchOut: null,
         lunchIn: null,
         clockOut: null,
+        extras: [],
         workedHours: 0,
         description,
         isValid: true,
@@ -154,6 +177,7 @@ function parseCSV(content: string): ParsedRow[] {
         lunchOut,
         lunchIn,
         clockOut,
+        extras,
         workedHours,
         description,
         isValid: true,
@@ -171,6 +195,7 @@ function parseCSV(content: string): ParsedRow[] {
       lunchOut,
       lunchIn,
       clockOut,
+      extras,
       workedHours,
       description,
       isValid: true,
@@ -212,6 +237,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       intervaloSaida: r.lunchOut || "-",
       intervaloEntrada: r.lunchIn || "-",
       horaFim: r.clockOut || "-",
+      extrasCount: r.extras?.length || 0,
       horasTrabalhadas: calculateWorkedHours(r.clockIn, r.clockOut, r.lunchOut, r.lunchIn),
       semTrabalho: r.isEmptyDay,
       hasWarning: r.hasWarning,
@@ -227,6 +253,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       workedHours: calculateWorkedHours(r.clockIn, r.clockOut, r.lunchOut, r.lunchIn),
       description: r.description,
       isEmptyDay: r.isEmptyDay,
+      extras: r.extras,
     }));
 
     const result: AnalysisResult = {

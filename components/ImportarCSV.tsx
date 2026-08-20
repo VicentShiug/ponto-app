@@ -18,6 +18,7 @@ interface PreviewData {
     intervaloSaida: string;
     intervaloEntrada: string;
     horaFim: string;
+    extrasCount: number;
     horasTrabalhadas: number;
     semTrabalho: boolean;
     hasWarning: boolean;
@@ -294,6 +295,7 @@ export default function ImportarCSV({ userRole, userId, employees }: Props) {
                         <th className="px-2 py-2 text-left font-medium" style={{ color: "var(--text-2)" }}>Int. Saída</th>
                         <th className="px-2 py-2 text-left font-medium" style={{ color: "var(--text-2)" }}>Int. Entrada</th>
                         <th className="px-2 py-2 text-left font-medium" style={{ color: "var(--text-2)" }}>Fim</th>
+                        <th className="px-2 py-2 text-left font-medium" style={{ color: "var(--text-2)" }}>Extras</th>
                         <th className="px-2 py-2 text-left font-medium" style={{ color: "var(--text-2)" }}>Horas</th>
                         <th className="px-2 py-2 text-left font-medium" style={{ color: "var(--text-2)" }}>Tipo</th>
                       </tr>
@@ -317,6 +319,13 @@ export default function ImportarCSV({ userRole, userId, employees }: Props) {
                           <td className="px-2 py-2" style={{ color: "var(--text)" }}>{row.intervaloSaida}</td>
                           <td className="px-2 py-2" style={{ color: "var(--text)" }}>{row.intervaloEntrada}</td>
                           <td className="px-2 py-2" style={{ color: "var(--text)" }}>{row.horaFim}</td>
+                          <td className="px-2 py-2" style={{ color: "var(--text)" }}>
+                            {row.extrasCount > 0 ? (
+                              <span className="text-xs px-1.5 py-0.5 rounded" style={{ backgroundColor: "var(--accent-subtle)", color: "var(--accent)" }}>
+                                +{row.extrasCount}
+                              </span>
+                            ) : "-"}
+                          </td>
                           <td className="px-2 py-2" style={{ color: "var(--text)" }}>{row.horasTrabalhadas > 0 ? row.horasTrabalhadas.toFixed(2).replace(".", ",") : "0,00"}</td>
                           <td className="px-2 py-2">
                             {row.semTrabalho ? (

@@ -20,6 +20,7 @@ export default async function EmployeeDashboard() {
 
   const todayEntry = await prisma.timeEntry.findUnique({
     where: { userId_date: { userId: user.id, date: today } },
+    include: { extraEntries: { orderBy: { order: "asc" } } },
   });
 
   const year = getYear(today);
@@ -35,6 +36,7 @@ export default async function EmployeeDashboard() {
   const entries = await prisma.timeEntry.findMany({
     where: { userId: user.id, date: { gte: ninetyDaysAgo } },
     orderBy: { date: "desc" },
+    include: { extraEntries: { orderBy: { order: "asc" } } },
   });
 
   const userWorkDays = user.workDays || [1,2,3,4,5];
@@ -42,13 +44,29 @@ export default async function EmployeeDashboard() {
   
   const balanceMinutes = await calculateDynamicBalance(user.id);
 
-  let currentStep: 0 | 1 | 2 | 3 | 4 = 0;
+  // Determinar step atual
+  let currentStep: 0 | 1 | 2 | 3 | 5 | 6 = 0;
   if (todayEntry) {
-    if (!todayEntry.clockIn) currentStep = 0;
-    else if (!todayEntry.lunchOut && !todayEntry.clockOut) currentStep = 1;
-    else if (todayEntry.lunchOut && !todayEntry.lunchIn && !todayEntry.clockOut) currentStep = 2;
-    else if ((todayEntry.lunchIn || !todayEntry.lunchOut) && !todayEntry.clockOut) currentStep = 3;
-    else currentStep = 4;
+    if (!todayEntry.clockIn) {
+      currentStep = 0;
+    } else if (!todayEntry.lunchOut && !todayEntry.clockOut) {
+      currentStep = 1;
+    } else if (todayEntry.lunchOut && !todayEntry.lunchIn && !todayEntry.clockOut) {
+      currentStep = 2;
+    } else if ((todayEntry.lunchIn || !todayEntry.lunchOut) && !todayEntry.clockOut) {
+      currentStep = 3;
+    } else if (todayEntry.clockOut) {
+      // Após clockOut: verificar extras
+      const extras = todayEntry.extraEntries || [];
+      const lastExtra = extras[extras.length - 1];
+      if (!lastExtra || lastExtra.exitTime) {
+        // Nenhuma extra, ou última extra tem exitTime → está FORA
+        currentStep = 5; // "Registrar Volta"
+      } else {
+        // Última extra sem exitTime → está DENTRO
+        currentStep = 6; // "Registrar Saída"
+      }
+    }
   }
 
   // Fetch certificates for the last 90 days to cover recent entries
@@ -77,11 +95,25 @@ export default async function EmployeeDashboard() {
       lunchOut: formatTime(e.lunchOut),
       lunchIn: formatTime(e.lunchIn),
       clockOut: formatTime(e.clockOut),
-      workedMinutes: fullDayCert ? 0 : calcWorkedMinutes(e),
+      workedMinutes: fullDayCert ? 0 : calcWorkedMinutes(e, e.extraEntries),
       expectedMinutes: expectedForEntry,
       holiday: isHoliday(e.date, holidays),
+      extraEntries: e.extraEntries.map(ex => ({
+        id: ex.id,
+        returnTime: formatTime(ex.returnTime),
+        exitTime: formatTime(ex.exitTime),
+        order: ex.order,
+      })),
     };
   });
+
+  // Serializar extras do dia atual
+  const todayExtras = todayEntry?.extraEntries.map(ex => ({
+    id: ex.id,
+    returnTime: formatTime(ex.returnTime),
+    exitTime: formatTime(ex.exitTime),
+    order: ex.order,
+  })) || [];
 
   return (
     <AppLayout userName={user.name} userRole="EMPLOYEE" avatarUrl={user.avatarUrl ?? undefined}>
@@ -94,6 +126,7 @@ export default async function EmployeeDashboard() {
           lunchIn: formatTime(todayEntry.lunchIn),
           clockOut: formatTime(todayEntry.clockOut),
         } : null}
+        todayExtras={todayExtras}
         currentStep={currentStep}
         balanceMinutes={balanceMinutes}
         balanceLabel={formatMinutes(balanceMinutes)}

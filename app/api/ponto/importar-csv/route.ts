@@ -12,6 +12,11 @@ const importSchema = z.object({
     lunchOut: z.string().nullable(),
     lunchIn: z.string().nullable(),
     clockOut: z.string().nullable(),
+    extras: z.array(z.object({
+      returnTime: z.string().nullable(),
+      exitTime: z.string().nullable(),
+      order: z.number(),
+    })).optional(),
     workedHours: z.number(),
     description: z.string(),
     isEmptyDay: z.boolean(),
@@ -104,7 +109,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             updateData.clockOut = null;
           }
 
-          await prisma.timeEntry.upsert({
+          const upsertedEntry = await prisma.timeEntry.upsert({
             where: {
               userId_date: {
                 userId: targetUserId,
@@ -119,6 +124,29 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             },
             update: updateData,
           });
+
+          // Handle extras
+          if (row.extras && row.extras.length > 0) {
+            // First, delete existing extras for this entry to recreate them clean
+            await prisma.extraTimeEntry.deleteMany({
+              where: { timeEntryId: upsertedEntry.id },
+            });
+
+            // Then create the new ones
+            for (const ex of row.extras) {
+              if (ex.returnTime) {
+                await prisma.extraTimeEntry.create({
+                  data: {
+                    timeEntryId: upsertedEntry.id,
+                    returnTime: parseTime(ex.returnTime, date),
+                    exitTime: ex.exitTime ? parseTime(ex.exitTime, date) : null,
+                    order: ex.order,
+                  },
+                });
+              }
+            }
+          }
+
           imported.push(1);
         }
       } catch (err) {

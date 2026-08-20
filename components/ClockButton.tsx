@@ -6,32 +6,22 @@ import { clsx } from "clsx";
 import { toast } from "./Toaster";
 
 interface ClockButtonProps {
-  currentStep: 0 | 1 | 2 | 3 | 4;
+  currentStep: 0 | 1 | 2 | 3 | 5 | 6;
   entryId: string | null;
   onSuccess: (newEntryId?: string) => void;
 }
 
-const STEPS = [
-  { label: "Registrar Entrada",  sub: "Início da jornada",  action: "clock_in"  },
-  { label: "Saída para Almoço",  sub: "Iniciar intervalo",  action: "lunch_out" },
-  { label: "Retorno do Almoço",  sub: "Encerrar intervalo", action: "lunch_in"  },
-  { label: "Registrar Saída",    sub: "Encerrar jornada",   action: "clock_out" },
-];
+const STEPS: Record<number, { label: string; sub: string; action: string }> = {
+  0: { label: "Registrar Entrada",  sub: "Início da jornada",     action: "clock_in"     },
+  1: { label: "Saída para Almoço",  sub: "Iniciar intervalo",     action: "lunch_out"    },
+  2: { label: "Retorno do Almoço",  sub: "Encerrar intervalo",    action: "lunch_in"     },
+  3: { label: "Registrar Saída",    sub: "Encerrar jornada",      action: "clock_out"    },
+  5: { label: "Registrar Volta",    sub: "Retornar ao trabalho",  action: "extra_return" },
+  6: { label: "Registrar Saída",    sub: "Saída extra",           action: "extra_exit"   },
+};
 
 export default function ClockButton({ currentStep, entryId, onSuccess }: ClockButtonProps) {
   const [loading, setLoading] = useState(false);
-
-  if (currentStep === 4) {
-    return (
-      <div className="flex flex-col items-center gap-3 py-6">
-        <div className="w-20 h-20 rounded-full flex items-center justify-center" style={{ border: "2px solid var(--accent-border)", backgroundColor: "var(--accent-subtle)" }}>
-          <Clock size={28} style={{ color: "var(--accent)" }} />
-        </div>
-        <p className="font-syne font-bold" style={{ color: "var(--text)" }}>Jornada Completa</p>
-        <p className="text-sm" style={{ color: "var(--text-3)" }}>Todas as marcações registradas.</p>
-      </div>
-    );
-  }
 
   const step = STEPS[currentStep];
 
